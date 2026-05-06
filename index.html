@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Lernpartner Finder</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>Trouve ton Lernpartner</h1>
+
+  <form id="profileForm">
+    <input type="text" id="name" placeholder="Nom" required>
+    <input type="text" id="subject" placeholder="Matière" required>
+    <input type="text" id="semester" placeholder="Semestre">
+    <input type="text" id="language" placeholder="Langue">
+    <input type="text" id="contact" placeholder="Contact (WhatsApp ou email)">
+    <button type="submit">Publier</button>
+  </form>
+
+  <h2>Étudiants disponibles</h2>
+  <div id="list"></div>
+
+  <script src="app.js"></script>
+
+</body>
+</html>
