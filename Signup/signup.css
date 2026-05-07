@@ -1,0 +1,90 @@
+body {
+    font-family: 'Inter', sans-serif;
+    /*La couleur du fond d'ecan est encore a adapter a celle de l'uni*/
+    background-color: rgb(230, 237, 220);
+    color: #222;
+    margin: 0;
+}
+header {
+    background-color: greenyellow;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 2rem;
+}
+.login-btn {
+    /*Couleur du bouton login a verifier et a adapter selon le site*/
+    background-color: gray;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.registration {
+    display: flex;
+    justify-content: space-around;
+    padding: 2rem;
+}
+.form-section {
+    /*La couleur de fond du formulaire sera egalement a adapter apres*/
+
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    width: 60%;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+.profile-picture img {
+    width: 100px;
+    border-radius: 50%;
+    display: block;
+    margin-bottom: 1rem;
+}
+.profile-progress {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    width: 25%;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+label {
+    display: block;
+    margin-top: 1rem;
+    font-weight: bold;
+}
+input, textarea {
+    width: 100%;
+    padding: 0.6rem;
+    margin-top: 0.3rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+.save-btn {
+    /*La couleur du bouton d'enregistrement est encore a verifier*/
+    background: yellowgreen;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.2rem;
+    border-radius: 6px;
+    margin-top: 1.5rem;
+    cursor: pointer;
+    width: 100%;
+}
+.valid {
+  color: #2ecc71;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.invalid {
+  color: #e74c3c;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.neutral {
+  color: #7f8c8d;
+  font-style: italic;
+}

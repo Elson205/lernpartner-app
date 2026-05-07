@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Registrierung - BUW</title>
+        <link rel="stylesheet" href="signup.css">
+
+    </head>
+    <body>
+        <header>
+            <!--Le logo a verifier encore-->
+            <div class="logo"> BUW</div>
+            <button class="login-btn">Anmelden</button>
+
+        </header>
+        <main class="registration">
+            <section class="form-section">
+                <h1>Registrierung</h1>
+                <form id="registrationForm">
+                    <div class="pofile-picture">
+                        <!--Choisir une photo de profil par defaut-->
+                        <img src="default-profile.png" alt="Profile Picture">
+                        <input type="file" id="uploadPhoto">
+                    </div>
+                    <label>Full Name</label>
+                    <input type="text" id="fullname" name="fullname" placeholder="Vor- Nachname">
+                    <label>University Email</label>
+                    <input type="email" id="email" name="email" placeholder="beispiel@uni-wuppertal.de">
+                    <label>Faculty</label>
+                    <input type="text" id="faculty" name="faculty" placeholder="Fakultät für Wirtschaftswissenschaft">
+                    <label>Semester</label>
+                    <input type="text" id="semester" name="semester" placeholder="4. Semester">
+                    <label>Über mich</label>
+                    <textarea id="about" name="about" rows="4" placeholder="Suche Lernpartner..."></textarea>
+                    <button type="submit" class="save-btn" id="submitBtn" disabled>Profil speichern</button>
+                </form>
+            </section>
+            <!--Section secondaire à droite-->
+            <aside class="profile-progress">
+                <h3>Dein Profil vervollständigen</h3>
+                <ul>
+                    <li id="check-photo">➖ Profilbild optional</li>
+                    <li id="check-fullname">➖ Vor- Nachname eingeben</li>
+                    <li id="check-email">➖ Universitäts Email eingeben</li>
+                    <li id="check-faculty">➖ Fakultät eintragen</li>
+                    <!--Reflechir encore si le semestre doit apparaitre sous forme de liste deroulante ou bien l'utilisateur doit entrer lui meme son semestre-->
+                    <li id="check-semester">➖ Semester hinzufügen</li>
+                    <li id="check-about">➖ Beschreibung hinzufügen</li>
+                </ul>
+            </aside>
+        </main>
+        <script src="signup.js"></script>
+    </body>
+</html>
