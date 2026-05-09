@@ -1,55 +1,111 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Registrierung - BUW</title>
-        <link rel="stylesheet" href="signup.css">
+  <head>
+    <link
+      href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css"
+      rel="stylesheet"
+    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Registrierung - BUW</title>
+    <link rel="stylesheet" href="signup.css" />
+  </head>
 
-    </head>
-    <body>
-        <header>
-            <!--Le logo a verifier encore-->
-            <div class="logo"> BUW</div>
-            <button class="login-btn">Anmelden</button>
+  <body>
+    <header>
+      <!--Le logo a ajouter encore-->
+      <div class="logo">BUW</div>
+      <button class="login-btn">Anmelden</button>
+    </header>
 
-        </header>
-        <main class="registration">
-            <section class="form-section">
-                <h1>Registrierung</h1>
-                <form id="registrationForm">
-                    <div class="pofile-picture">
-                        <!--Choisir une photo de profil par defaut-->
-                        <img src="default-profile.png" alt="Profile Picture">
-                        <input type="file" id="uploadPhoto">
-                    </div>
-                    <label>Full Name</label>
-                    <input type="text" id="fullname" name="fullname" placeholder="Vor- Nachname">
-                    <label>University Email</label>
-                    <input type="email" id="email" name="email" placeholder="beispiel@uni-wuppertal.de">
-                    <label>Faculty</label>
-                    <input type="text" id="faculty" name="faculty" placeholder="Fakultät für Wirtschaftswissenschaft">
-                    <label>Semester</label>
-                    <input type="text" id="semester" name="semester" placeholder="4. Semester">
-                    <label>Über mich</label>
-                    <textarea id="about" name="about" rows="4" placeholder="Suche Lernpartner..."></textarea>
-                    <button type="submit" class="save-btn" id="submitBtn" disabled>Profil speichern</button>
-                </form>
-            </section>
-            <!--Section secondaire à droite-->
-            <aside class="profile-progress">
-                <h3>Dein Profil vervollständigen</h3>
-                <ul>
-                    <li id="check-photo">➖ Profilbild optional</li>
-                    <li id="check-fullname">➖ Vor- Nachname eingeben</li>
-                    <li id="check-email">➖ Universitäts Email eingeben</li>
-                    <li id="check-faculty">➖ Fakultät eintragen</li>
-                    <!--Reflechir encore si le semestre doit apparaitre sous forme de liste deroulante ou bien l'utilisateur doit entrer lui meme son semestre-->
-                    <li id="check-semester">➖ Semester hinzufügen</li>
-                    <li id="check-about">➖ Beschreibung hinzufügen</li>
-                </ul>
-            </aside>
-        </main>
-        <script src="signup.js"></script>
-    </body>
+    <main class="registration">
+      <!--Section du formulaire-->
+      <section class="form-section">
+        <h1>Registrierung</h1>
+        <form id="registrationForm">
+          <div class="top-profile-section">
+            <!-- PHOTO -->
+            <div class="profile-picture">
+                <label for="uploadPhoto" class="photo-label">
+                    Profile Picture
+                </label>
+              <img
+                id="profilePreview"
+                src="user-placeholder.jpg"
+                alt="Profile Picture"
+              />
+
+              <label for="uploadPhoto" class="custom-upload">
+                Upload Photo
+              </label>
+              <!--accept pour autoriser l'ajout de photo d'un certain type d'attribut-->
+              <input type="file" id="uploadPhoto" accept="image/*" />
+            </div>
+
+            <!-- INFOS -->
+            <div class="user-info">
+
+                <!--Full Name-->
+              <label>Full Name</label>
+              <input
+                type="text"
+                id="fullname"
+                name="fullname"
+                placeholder="Vor- Nachname"
+              />
+              
+              <!--Email Adresse-->
+              <label>University Email</label>
+              <input
+                type="email"
+                name="email"
+                placeholder="beispiel@uni-wuppertal.de"
+              />
+            </div>
+          </div>
+
+          <!--Faculty-->
+          <label>Faculty</label>
+          <input
+            type="text"
+            id="faculty"
+            name="faculty"
+            placeholder="Fakultät für Wirtschaftswissenschaft"
+          />
+
+          <!--Semester-->
+          <label for="semester">Semester</label>
+          <select id="semester" name="semester">
+            <option value="">Bitte auswählen</option>
+            <option value="1-2">1. - 2. Semester</option>
+            <option value="3-4">3. - 4. Semester</option>
+            <option value="5-6">5. - 6. Semester</option>
+            <option value="7 oder mehr">7. Semester oder höher</option>
+          </select>
+
+          <!--Beschreibung-->
+          <label>Über mich</label>
+          <div id="editor"></div>
+          <button type="submit" class="save-btn" id="submitBtn" disabled>
+            Profil speichern
+          </button>
+        </form>
+      </section>
+      <!--Section secondaire à droite-->
+      <aside class="profile-progress">
+        <h3>Dein Profil vervollständigen</h3>
+        <ul>
+          <li id="check-photo">➖ Profilbild optional</li>
+          <li id="check-fullname">➖ Vor- Nachname eingeben</li>
+          <li id="check-email">➖ Universitäts Email eingeben</li>
+          <li id="check-faculty">➖ Fakultät eintragen</li>
+          <!--Reflechir encore si le semestre doit apparaitre sous forme de liste deroulante ou bien l'utilisateur doit entrer lui meme son semestre-->
+          <li id="check-semester">➖ Semester hinzufügen</li>
+          <li id="check-about">➖ Beschreibung hinzufügen</li>
+        </ul>
+      </aside>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+    <script src="signup.js"></script>
+  </body>
 </html>

@@ -1,90 +1,343 @@
+/* =========================
+   STYLE GLOBAL DE LA PAGE
+========================= */
 body {
-    font-family: 'Inter', sans-serif;
-    /*La couleur du fond d'ecan est encore a adapter a celle de l'uni*/
-    background-color: rgb(230, 237, 220);
-    color: #222;
-    margin: 0;
+  font-family: "Inter", sans-serif;
+  /*La couleur du fond d'ecan est encore a adapter a celle de l'uni*/
+  background-color: #f7f9fc;
+  color: #222;
+  margin: 0;
+  line-height: 1.5;
 }
-header {
-    background-color: greenyellow;
-    color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.8rem 2rem;
-}
-.login-btn {
-    /*Couleur du bouton login a verifier et a adapter selon le site*/
-    background-color: gray;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-}
-.registration {
-    display: flex;
-    justify-content: space-around;
-    padding: 2rem;
-}
-.form-section {
-    /*La couleur de fond du formulaire sera egalement a adapter apres*/
 
-    background: white;
-    border-radius: 10px;
-    padding: 2rem;
-    width: 60%;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+/* =========================
+   HEADER / BARRE SUPÉRIEURE
+========================= */
+header {
+  background-color: #0b2850;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 2rem;
+   box-shadow:
+    0 2px 10px rgba(0,0,0,0.08);
 }
-.profile-picture img {
-    width: 100px;
-    border-radius: 50%;
-    display: block;
-    margin-bottom: 1rem;
+
+h1 {
+  font-size: 2rem;
+
+  font-weight: 700;
+
+  margin-bottom: 2rem;
+
+  color: #0b2850;
 }
+
+/* =========================
+   BOUTON LOGIN
+========================= */
+.login-btn {
+  /*Couleur du bouton login a verifier et a adapter selon le site*/
+  background-color: gray;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+   transition:
+    background 0.3s,
+    transform 0.2s;
+}
+
+.login-btn:hover {
+
+  transform: translateY(-2px);
+
+  background: #8c8c8c;
+}
+
+/* =========================
+   CONTENEUR PRINCIPAL
+========================= */
+.registration {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2rem;
+  padding: 3rem;
+  max-width: 1200px;
+  margin: auto;
+}
+
+/* =========================
+   FORMULAIRE PRINCIPAL
+========================= */
+.form-section {
+  /*La couleur de fond du formulaire sera egalement a adapter apres*/
+
+  background: white;
+  border-radius: 10px;
+  padding: 2.5rem;
+  width: 65%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* =========================
+   SIDEBAR À DROITE
+========================= */
 .profile-progress {
-    background: white;
-    border-radius: 10px;
-    padding: 1.5rem;
-    width: 25%;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  background: white;
+  border-radius: 10px;
+  padding: 1.5rem;
+  width: 25%;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
+
+.profile-progress li:hover {
+  transform: translateX(3px);
+}
+
+.profile-progress ul {
+  list-style: none;
+
+  padding: 0;
+
+  margin: 0;
+}
+
+.profile-progress li {
+  padding: 0.9rem;
+
+  border-radius: 10px;
+
+  margin-bottom: 0.8rem;
+
+  background: #f8fafc;
+
+  transition: 0.3s;
+}
+
+/* =========================
+   LABELS DES CHAMPS
+========================= */
 label {
-    display: block;
-    margin-top: 1rem;
-    font-weight: bold;
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
 }
-input, textarea {
-    width: 100%;
-    padding: 0.6rem;
-    margin-top: 0.3rem;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+
+/* =========================
+   INPUTS / TEXTAREA / SELECT
+========================= */
+input,
+textarea,
+select {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  resize: none;
+  box-sizing: border-box;
+  transition:
+    border 0.3s,
+    box-shadow 0.3s;
 }
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+
+  border: 1px solid #0b2850;
+
+  box-shadow: 0 0 0 4px rgba(11, 40, 80, 0.1);
+}
+
+/* =========================
+   BOUTON SAVE
+========================= */
 .save-btn {
-    /*La couleur du bouton d'enregistrement est encore a verifier*/
-    background: yellowgreen;
-    color: white;
-    border: none;
-    padding: 0.8rem 1.2rem;
-    border-radius: 6px;
-    margin-top: 1.5rem;
-    cursor: pointer;
-    width: 100%;
+  /*La couleur du bouton d'enregistrement est encore a verifier*/
+  background: #0b2850;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.2rem;
+  border-radius: 6px;
+  margin-top: 1.5rem;
+  cursor: pointer;
+  width: 100%;
+  font-size: 1rem;
+
+  font-weight: 600;
+
+  transition:
+    background 0.3s,
+    transform 0.2s;
 }
+
+.save-btn:hover {
+  background: #163b70;
+
+  transform: translateY(-2px);
+}
+
+.save-btn:disabled {
+  background: #cbd5e1;
+
+  cursor: not-allowed;
+}
+
+/* =========================
+   ÉTAT VALIDE
+========================= */
 .valid {
   color: #2ecc71;
-  font-weight: bold;
-  transition: 0.3s;
+  font-weight: 600;
+  transition:
+    color 0.3s,
+    background 0.3s;
 }
 
+/* =========================
+   ÉTAT INVALIDE
+========================= */
 .invalid {
   color: #e74c3c;
-  font-weight: bold;
-  transition: 0.3s;
+  font-weight: 600;
+  transition:
+    color 0.3s,
+    background 0.3s;
 }
 
+/* =========================
+   ÉTAT NEUTRE
+========================= */
 .neutral {
   color: #7f8c8d;
   font-style: italic;
+}
+
+/* =========================
+   ÉDITEUR QUILL
+========================= */
+#editor {
+  background: white;
+  height: 150px;
+  margin-top: 0.5rem;
+}
+
+/* =========================
+   SECTION PHOTO + INFOS
+========================= */
+.top-profile-section {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+/* =========================
+   CONTENEUR PHOTO
+========================= */
+.profile-picture {
+  width: 150px;
+
+  /*Même sans photo l’espace reste réservé*/
+  min-width: 150px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* =========================
+   IMAGE DE PROFIL
+========================= */
+.profile-picture img {
+  width: 150px;
+  height: 150px;
+  /*Empêche les photos d’être déformées.*/
+  object-fit: cover;
+
+  display: block;
+  margin-bottom: 1rem;
+  border-radius: 50%;
+  border: 4px solid #edf2f7;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: 0.3s;
+}
+
+.profile-picture img:hover {
+  transform: scale(1.03);
+}
+
+/* =========================
+   PARTIE INFORMATIONS
+========================= */
+
+.user-info label:not(:first-child) {
+  margin-top: 1.2rem;
+}
+
+.user-info {
+  /*La partie texte prend tout l’espace restant.*/
+  flex: 1;
+  /*margin-top: -6rem;*/
+}
+
+/* =========================
+   INPUT UPLOAD PHOTO
+========================= */
+#uploadPhoto {
+  margin-top: 0.7rem;
+  font-size: 0.9rem;
+  display: none;
+}
+
+.custom-upload {
+  margin-top: 1rem;
+
+  background: #0b2850;
+
+  color: white;
+
+  padding: 0.7rem 1rem;
+
+  border-radius: 10px;
+
+  cursor: pointer;
+
+  font-size: 0.9rem;
+
+  transition: 0.3s;
+}
+
+.custom-upload:hover {
+  background: #163b70;
+}
+
+
+
+@media (max-width: 900px) {
+  .registration {
+    flex-direction: column;
+
+    padding: 1rem;
+  }
+
+  .form-section,
+  .profile-progress {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .top-profile-section {
+    flex-direction: column;
+
+    align-items: center;
+  }
+
+  .user-info {
+    width: 100%;
+  }
 }
