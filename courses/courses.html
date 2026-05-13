@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Kursverwaltung - BUW</title>
+        <link rel="stylesheet" href="courses.css" />
+    </head>
+    <body>
+        <header>
+      <!-- Le logo a ajouter encore -->
+            <div class="logo">BUW</div>
+            <button class="login-btn">Anmelden</button>
+        </header>
+        <main class="courses-page">
+            <!-- Section: Liste des cours -->
+            <section class="my-courses">
+                <h2>Meine Kurse</h2>
+                <!-- 🔎 Barre de recherche -->
+                 <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="Suche nach Kursname, Semester oder Fakultät..." aria-label="Kurs suchen"/>
+                 </div>
+                <div id="courseList" class="course-container">
+                    <!--Les cours ajoutés apparaitront ici-->
+                </div>
+            </section>
+            <hr />
+            <!-- Section: ajouter un nouveau cours -->
+             <section class="add-course">
+                <h2>Neuen Kurs hinzufügen</h2>
+                <form id="addCourseForm">
+                    <label for="courseName">Kursname</label>
+                    <input type="text" id="courseName" placeholder="z.B. Mathematik A" required >
+                    <label for="semester">Semester</label>
+                    <select id="semester" required>
+                        <option value="">Wählen...</option>
+                        <option value="WS25/26">WS25/26</option>
+                        <option value="SS26">SS26</option>
+                        <option value="WS26/27">WS26/27</option>
+                    </select>
+                    <!-- A completer apres avoir eu a ajouter les facultes presentes a l'uni -->
+                    <label for="faculty">Fachbereich</label>
+                    <select id="faculty" required>
+                        <option value="">Wählen...</option>
+                        <option value="1">1</option>
+                    </select>
+                    <button type="submit" class="add-btn">Kurs hinzufügen</button>
+                </form>
+             </section>
+        </main>
+        <script src="courses.js"></script>
+    </body>
+</html>

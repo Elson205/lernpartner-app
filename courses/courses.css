@@ -1,0 +1,188 @@
+body {
+    font-family: "Inter", sans-serif;
+    background-color: #f7f9fc;
+    color: #222;
+    margin: 0;
+}
+
+header {
+  background-color: #0b2850;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 2rem;
+   box-shadow:
+    0 2px 10px rgba(0,0,0,0.08);
+}
+
+h2 {
+    color: #0b2850;
+    margin-bottom: 1rem;
+}
+/* =========================
+   BOUTON LOGIN
+========================= */
+.login-btn {
+  /*Couleur du bouton login a verifier et a adapter selon le site*/
+  background-color: gray;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+   transition:
+    background 0.3s,
+    transform 0.2s;
+}
+
+.login-btn:hover {
+
+  transform: translateY(-2px);
+
+  background: #8c8c8c;
+}
+
+.courses-page {
+    max-width: 1000px;
+    margin: 2rem auto;
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.course-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    justify-content: flex-start;
+}
+/**/
+.course-card {
+    background: #f0f4f8;
+    border-radius: 10px;
+    padding: 1rem;
+    /*Nombre de carte par ligne a verifier. Pour le moment 3 cartes*/
+    width: calc(33.333% - 1rem);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.course-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.course-card h3 {
+  margin: 0;
+  color: #0b2850;
+}
+
+.course-card small {
+    display: block;
+    color: #555;
+    margin-top: 0.3rem;
+}
+ /* Bouton de suppression */
+.delete-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: #cc0000;
+  border: none;
+  color: white;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+
+/* bouton de confirmation affiché après clic */
+.confirm-delete {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #ff4d4d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  cursor: pointer;
+  display: none;
+  z-index: 2;
+}
+
+/* effet d’ombre autour de la confirmation */
+.course-card.blur::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+}
+
+/* Formulaire d' ajout */
+.add-course {
+    margin-top: 2rem;
+}
+
+form select, form input {
+    width: 100%;
+    margin-bottom: 1rem;
+    padding: 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+.add-btn {
+    background: #0b2850;
+    color: white;
+    padding: 0.8rem;
+    border: none;
+    border-radius: 6px;
+    width: 100%;
+    cursor: pointer;
+}
+
+.add-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* Barre de recherche */
+.search-bar {
+  margin-bottom: 1.5rem;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 0.7rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  transition: border 0.3s, box-shadow 0.3s;
+}
+
+.search-bar input:focus {
+  outline: none;
+  border: 1px solid #0b2850;
+  box-shadow: 0 0 0 4px rgba(11, 40, 80, 0.1);
+}
+/* Pour petits ecrans */
+@media (max-width: 800px) {
+  .course-card {
+    width: calc(50% - 1rem); /* 2 cartes par ligne */
+  }
+}
+
+@media (max-width: 500px) {
+  .course-card {
+    width: 100%; /* 1 carte par ligne sur mobile */
+  }
+}
