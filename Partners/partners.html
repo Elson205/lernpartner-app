@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lernpartner finden - BUW</title>
+    <link rel="stylesheet" href="partners.css" />
+  </head>
+
+  <body>
+    <header>
+      <div class="logo">BUW</div>
+
+      <div class="header-actions">
+        <button class="login-btn">Anmelden</button>
+      </div>
+    </header>
+
+    <main class="partners-page">
+      <section class="search-section">
+        <h1>Lernpartner finden</h1>
+
+        <form id="partnerSearchForm" class="partner-search-form">
+          <input
+            type="text"
+            id="partnerSearchInput"
+            placeholder="Suche nach Kurs oder Modul: Statistik 2"
+            autocomplete="off"
+          />
+
+          <button type="submit" class="search-btn">Suche</button>
+        </form>
+      </section>
+
+      <hr />
+
+      <section class="results-layout">
+        <div id="partnersList" class="partners-list">
+          <!-- Les profils seront ajoutés ici avec JavaScript -->
+        </div>
+
+        <aside class="suggestions-box">
+          <h3>Vorschläge basierend auf deinen Kursen</h3>
+
+          <div id="suggestionsList">
+            <!-- Suggestions ajoutées avec JavaScript -->
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="partners.js"></script>
+  </body>
+</html>
