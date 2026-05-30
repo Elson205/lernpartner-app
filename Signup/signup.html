@@ -80,12 +80,15 @@
             <option value="Design und Kunst">Design und Kunst</option>
             <option value="School of Education">School of Education</option>
           </select>
-         <!-- <input
-            type="text"
-            id="faculty"
-            name="faculty"
-            placeholder="Fakultät für Wirtschaftswissenschaft"
-          />-->
+
+          <label for="fach">Fachbereich</label>
+
+           <input
+                type="text"
+                id="fachbereich"
+                name="fachbereich"
+                placeholder="Fachbereich"
+              />
 
           <!--Semester-->
           <label for="semester">Semester</label>
@@ -100,6 +103,7 @@
           <!--Beschreibung-->
           <label>Über mich</label>
           <div id="editor"></div>
+          
           <button type="submit" class="save-btn" id="submitBtn" disabled>
             Profil speichern
           </button>
@@ -113,6 +117,7 @@
           <li id="check-fullname">➖ Vor- Nachname eingeben</li>
           <li id="check-email">➖ Universitäts Email eingeben</li>
           <li id="check-faculty">➖ Fakultät eintragen</li>
+          <li id= "check-fachbereich">➖ Fachbereich eintragen</li>
           <!--Reflechir encore si le semestre doit apparaitre sous forme de liste deroulante ou bien l'utilisateur doit entrer lui meme son semestre-->
           <li id="check-semester">➖ Semester hinzufügen</li>
           <li id="check-about">➖ Beschreibung hinzufügen</li>

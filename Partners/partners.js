@@ -69,10 +69,7 @@ const users = [
 
 // Exemple : cours de l'utilisateur connecté
 // Plus tard, tu peux utiliser les cours enregistrés depuis courses.js avec localStorage.
-const myCourses = JSON.parse(localStorage.getItem("courses")) || [
-  { name: "Statistik 2", semester: "SS24", faculty: "Wirtschaft" },
-  { name: "Java", semester: "SS24", faculty: "Informatik" },
-];
+const myCourses = JSON.parse(localStorage.getItem("courses")) || [];
 
 function normalizeText(text) {
   return text
@@ -210,7 +207,8 @@ function renderSuggestions() {
     item.className = "suggestion-item";
     item.innerHTML = `
       <strong>Gemeinsamer Kurs:</strong><br />
-      ${course.name}
+      ${course.name}<br />
+      <small>${course.semester} - ${course.faculty}</small>
     `;
 
     item.addEventListener("click", () => {
@@ -222,6 +220,14 @@ function renderSuggestions() {
   });
 }
 
+
 // Initialisation
-renderPartners([]);
 renderSuggestions();
+
+if (myCourses.length > 0) {
+  searchInput.value = myCourses[0].name;
+  searchPartners(myCourses[0].name);
+} else {
+  renderPartners([]);
+}
+

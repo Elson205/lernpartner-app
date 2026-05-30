@@ -31,6 +31,7 @@ function checkFormValid() {
   const email = form.email.value;
   const fullname = document.getElementById("fullname").value;
   const faculty = document.getElementById("faculty").value;
+  const fachbereich = document.getElementById("fachbereich").value;
   const semester = document.getElementById("semester").value;
   const about = quill.getText().trim();
   const photo = document.getElementById("uploadPhoto").files.length;
@@ -52,6 +53,16 @@ function checkFormValid() {
   } else {
     document.getElementById("check-faculty").innerHTML = "❌ Fakultät fehlt";
     document.getElementById("check-faculty").className = "invalid";
+  }
+
+  // ===== FACHBEREICH =====
+  if(fachbereich.trim() !== "") {
+    document.getElementById("check-fachbereich").innerHTML =
+      "✅ Fachbereich eingetragen";
+      document.getElementById("check-fachbereich").className = "valid"; 
+  } else {
+    document.getElementById("check-fachbereich").innerHTML = "❌ Fachbereich fehlt"
+    document.getElementById("check-fachbereich").className = "invalid";
   }
 
   // ===== FULLNAME =====
@@ -99,6 +110,8 @@ function checkFormValid() {
   if (
     email.endsWith("@uni-wuppertal.de") &&
     faculty.trim() !== "" &&
+    fullname.trim() !== "" &&
+    fachbereich.trim() !== "" &&
     semester.trim() !== "" &&
     about.trim() !== ""
   ) {
