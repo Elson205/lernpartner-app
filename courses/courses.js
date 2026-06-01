@@ -1,59 +1,146 @@
-// === Sélection des éléments ===
+import { app } from "../firebase-config.js";
+
+import {
+  getAuth,
+  onAuthStateChanged,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  updateDoc,
+  setDoc,
+  serverTimestamp,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const auth = getAuth(app);
+const db = getFirestore(app);
+
 const form = document.getElementById("addCourseForm");
 const courseList = document.getElementById("courseList");
 const searchInput = document.getElementById("searchInput");
 
-let courses = JSON.parse(localStorage.getItem("courses")) || [];
+const addCourseBtn = document.getElementById("addCourseBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const partnersBtn = document.getElementById("partnersBtn");
+const chatBtn = document.getElementById("chatBtn");
 
-// === Fonction utilitaire pour ignorer accents et majuscules ===
-function normalizeText(text) {
-  return text
+let currentUser = null;
+let courses = [];
+
+/* =========================
+   UTILITAIRES
+========================= */
+
+function normalizeText(text = "") {
+  return String(text)
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-// === Fonction pour créer visuellement une carte de cours ===
+function escapeHTML(text = "") {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function createCourseId(course) {
+  return `${normalizeText(course.name)}_${normalizeText(course.semester)}_${normalizeText(course.faculty)}`;
+}
+
+/* =========================
+   FIREBASE USER COURSES
+========================= */
+
+async function loadCoursesFromFirebase() {
+  const userRef = doc(db, "users", currentUser.uid);
+  const userSnap = await getDoc(userRef);
+
+  if (!userSnap.exists()) {
+    await setDoc(
+      userRef,
+      {
+        uid: currentUser.uid,
+        email: currentUser.email,
+        activeCourses: [],
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    courses = [];
+    return;
+  }
+
+  const userData = userSnap.data();
+
+  courses = Array.isArray(userData.activeCourses)
+    ? userData.activeCourses
+    : [];
+}
+
+async function saveCoursesToFirebase() {
+  await updateDoc(doc(db, "users", currentUser.uid), {
+    activeCourses: courses,
+  });
+}
+
+/* =========================
+   AFFICHAGE
+========================= */
+
 function createCourseCard(course, index) {
   const card = document.createElement("div");
   card.className = "course-card";
+
   card.innerHTML = `
-    <h3>${course.name}</h3>
-    <small>${course.semester}</small>
-    <small>${course.faculty}</small>
-    <button class="delete-btn">✖</button>
-    <button class="confirm-delete">Delete</button>
+    <h3>${escapeHTML(course.name)}</h3>
+    <small>${escapeHTML(course.semester)}</small>
+    <small>${escapeHTML(course.faculty)}</small>
+
+    <button type="button" class="delete-btn">✖</button>
+    <button type="button" class="confirm-delete">Delete</button>
   `;
-// === BOuton de suppression ===
+
   const deleteBtn = card.querySelector(".delete-btn");
   const confirmBtn = card.querySelector(".confirm-delete");
 
-  // 1er clic : afficher le bouton de confirmation
   deleteBtn.addEventListener("click", () => {
     card.classList.add("blur");
     confirmBtn.style.display = "block";
   });
 
-  // 2e clic : supprimer après confirmation
-  confirmBtn.addEventListener("click", () => {
-    if (confirm("Möchtest du diesen Kurs wirklich löschen?")) {
-      courses.splice(index, 1);
-      localStorage.setItem("courses", JSON.stringify(courses));
-      renderCourses();
-    } else {
+  confirmBtn.addEventListener("click", async () => {
+    const confirmed = confirm("Möchtest du diesen Kurs wirklich löschen?");
+
+    if (!confirmed) {
       card.classList.remove("blur");
       confirmBtn.style.display = "none";
+      return;
     }
+
+    courses.splice(index, 1);
+
+    await saveCoursesToFirebase();
+
+    renderCourses();
   });
 
   return card;
 }
 
-// === Afficher tous les cours ===
 function renderCourses() {
   courseList.innerHTML = "";
+
   if (courses.length === 0) {
-    courseList.innerHTML = "<p>Keine Kurse hinzugefügt.</p>";
+    courseList.innerHTML =
+      '<p class="empty-message">Keine Kurse hinzugefügt.</p>';
     return;
   }
 
@@ -62,9 +149,30 @@ function renderCourses() {
   });
 }
 
-// === Ajouter un nouveau cours ===
-form.addEventListener("submit", (e) => {
-  e.preventDefault();
+function renderFilteredCourses(list) {
+  courseList.innerHTML = "";
+
+  if (list.length === 0) {
+    courseList.innerHTML =
+      '<p class="empty-message">Keine Kurse gefunden.</p>';
+    return;
+  }
+
+  list.forEach((course) => {
+    const realIndex = courses.findIndex(
+      (item) => createCourseId(item) === createCourseId(course)
+    );
+
+    courseList.appendChild(createCourseCard(course, realIndex));
+  });
+}
+
+/* =========================
+   AJOUTER UN COURS
+========================= */
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
 
   const newCourse = {
     name: form.courseName.value.trim(),
@@ -72,21 +180,52 @@ form.addEventListener("submit", (e) => {
     faculty: form.faculty.value,
   };
 
-  if (!newCourse.name || !newCourse.semester || !newCourse.faculty) return;
+  if (!newCourse.name || !newCourse.semester || !newCourse.faculty) {
+    alert("Bitte fülle alle Felder aus.");
+    return;
+  }
 
-  courses.push(newCourse);
-  localStorage.setItem("courses", JSON.stringify(courses));
-  form.reset();
-  renderCourses();
+  const alreadyExists = courses.some(
+    (course) => createCourseId(course) === createCourseId(newCourse)
+  );
+
+  if (alreadyExists) {
+    alert("Dieser Kurs wurde bereits hinzugefügt.");
+    return;
+  }
+
+  try {
+    addCourseBtn.disabled = true;
+    addCourseBtn.textContent = "Kurs wird gespeichert...";
+
+    courses.push(newCourse);
+
+    await saveCoursesToFirebase();
+
+    form.reset();
+
+    renderCourses();
+  } catch (error) {
+    console.error(error);
+    alert("Kurs konnte nicht gespeichert werden.");
+  } finally {
+    addCourseBtn.disabled = false;
+    addCourseBtn.textContent = "Kurs hinzufügen";
+  }
 });
 
-// === Recherche en temps réel (accent/casse ignorés) ===
+/* =========================
+   RECHERCHE
+========================= */
+
 searchInput.addEventListener("input", function () {
   const query = normalizeText(this.value);
+
   const filteredCourses = courses.filter((course) => {
     const name = normalizeText(course.name);
     const semester = normalizeText(course.semester);
     const faculty = normalizeText(course.faculty);
+
     return (
       name.includes(query) ||
       semester.includes(query) ||
@@ -97,18 +236,40 @@ searchInput.addEventListener("input", function () {
   renderFilteredCourses(filteredCourses);
 });
 
-// === Afficher les résultats filtrés (même design que renderCourses) ===
-function renderFilteredCourses(list) {
-  courseList.innerHTML = "";
-  if (list.length === 0) {
-    courseList.innerHTML = "<p>Keine Kurse gefunden.</p>";
+/* =========================
+   HEADER NAVIGATION
+========================= */
+
+partnersBtn.addEventListener("click", () => {
+  window.location.href = "../Partners/partners.html";
+});
+
+chatBtn.addEventListener("click", () => {
+  window.location.href = "../Chat/chat.html";
+});
+
+logoutBtn.addEventListener("click", async () => {
+  await signOut(auth);
+  window.location.href = "../Login/login.html";
+});
+
+/* =========================
+   INIT
+========================= */
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = "../Login/login.html";
     return;
   }
 
-  list.forEach((course, index) => {
-    courseList.appendChild(createCourseCard(course, index));
-  });
-}
+  currentUser = user;
 
-// === Initialisation ===
-renderCourses();
+  try {
+    await loadCoursesFromFirebase();
+    renderCourses();
+  } catch (error) {
+    console.error(error);
+    alert("Kurse konnten nicht geladen werden.");
+  }
+});
