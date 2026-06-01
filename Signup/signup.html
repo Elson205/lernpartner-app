@@ -1,34 +1,43 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
   <head>
     <link
       href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css"
       rel="stylesheet"
     />
+
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>Registrierung - BUW</title>
+
     <link rel="stylesheet" href="signup.css" />
   </head>
 
   <body>
     <header>
-      <!--Le logo a ajouter encore-->
       <div class="logo">BUW</div>
-      <button class="login-btn">Anmelden</button>
+
+      <button
+        type="button"
+        class="login-btn"
+        onclick="window.location.href = '../Login/login.html'"
+      >
+        Anmelden
+      </button>
     </header>
 
     <main class="registration">
-      <!--Section du formulaire-->
       <section class="form-section">
         <h1>Registrierung</h1>
+
         <form id="registrationForm">
           <div class="top-profile-section">
-            <!-- PHOTO -->
             <div class="profile-picture">
-                <label for="uploadPhoto" class="photo-label">
-                    Profile Picture
-                </label>
+              <label for="uploadPhoto" class="photo-label">
+                Profile Picture
+              </label>
+
               <img
                 id="profilePreview"
                 src="user-placeholder.jpg"
@@ -38,59 +47,86 @@
               <label for="uploadPhoto" class="custom-upload">
                 Upload Photo
               </label>
-              <!--accept pour autoriser l'ajout de photo d'un certain type d'attribut-->
+
               <input type="file" id="uploadPhoto" accept="image/*" />
             </div>
 
-            <!-- INFOS -->
             <div class="user-info">
-
-                <!--Full Name-->
-              <label>Full Name</label>
+              <label for="fullname">Full Name</label>
               <input
                 type="text"
                 id="fullname"
                 name="fullname"
                 placeholder="Vor- Nachname"
               />
-              
-              <!--Email Adresse-->
-              <label>University Email</label>
+
+              <label for="email">University Email</label>
               <input
                 type="email"
+                id="email"
                 name="email"
                 placeholder="beispiel@uni-wuppertal.de"
+              />
+
+              <label for="password">Passwort</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Mindestens 6 Zeichen"
+              />
+
+              <label for="confirmPassword">Passwort bestätigen</label>
+              <input
+                type="password"
+                id="confirmPassword"
+                name="confirmPassword"
+                placeholder="Passwort erneut eingeben"
               />
             </div>
           </div>
 
-          <!--Faculty-->
           <label for="faculty">Faculty</label>
-
-          <!--A modifier encore apres: Ajout des facultes en fonction de celles presentes ici a l'uni-->
           <select id="faculty" name="faculty">
             <option value="">Bitte Fakultät auswählen</option>
-            <option value="Geistes- und Kulturwissenschaften">Geistes- und Kulturwissenschaften</option>
-            <option value="Human- und Sozialwissenschaften">Human- und Sozialwissenschaften</option>
-            <option value="Wirtschaftswissenschaft - Schumpeter School of Business and Economics">Wirtschaftswissenschaft - Schumpeter School of Business and Economics</option>
-            <option value="Mathematik und Naturwissenschaften">Mathematik und Naturwissenschaften</option>
-            <option value="Architektur und Bauingenieurwesen">Architektur und Bauingenieurwesen</option>
-            <option value="Elektrotechnik, Informationstechnik und Medientechnik">Elektrotechnik, Informationstechnik und Medientechnik</option>
-            <option value="Maschinenbau und Sicherheitstechnik">Maschinenbau und Sicherheitstechnik</option>
+            <option value="Geistes- und Kulturwissenschaften">
+              Geistes- und Kulturwissenschaften
+            </option>
+            <option value="Human- und Sozialwissenschaften">
+              Human- und Sozialwissenschaften
+            </option>
+            <option
+              value="Wirtschaftswissenschaft - Schumpeter School of Business and Economics"
+            >
+              Wirtschaftswissenschaft - Schumpeter School of Business and
+              Economics
+            </option>
+            <option value="Mathematik und Naturwissenschaften">
+              Mathematik und Naturwissenschaften
+            </option>
+            <option value="Architektur und Bauingenieurwesen">
+              Architektur und Bauingenieurwesen
+            </option>
+            <option
+              value="Elektrotechnik, Informationstechnik und Medientechnik"
+            >
+              Elektrotechnik, Informationstechnik und Medientechnik
+            </option>
+            <option value="Maschinenbau und Sicherheitstechnik">
+              Maschinenbau und Sicherheitstechnik
+            </option>
             <option value="Design und Kunst">Design und Kunst</option>
             <option value="School of Education">School of Education</option>
           </select>
 
-          <label for="fach">Fachbereich</label>
+          <label for="fachbereich">Fachbereich</label>
+          <input
+            type="text"
+            id="fachbereich"
+            name="fachbereich"
+            placeholder="Fachbereich"
+          />
 
-           <input
-                type="text"
-                id="fachbereich"
-                name="fachbereich"
-                placeholder="Fachbereich"
-              />
-
-          <!--Semester-->
           <label for="semester">Semester</label>
           <select id="semester" name="semester">
             <option value="">Bitte Semester auswählen</option>
@@ -100,31 +136,33 @@
             <option value="7 oder mehr">7. Semester oder höher</option>
           </select>
 
-          <!--Beschreibung-->
-          <label>Über mich</label>
+          <label for="editor">Über mich</label>
           <div id="editor"></div>
-          
+
           <button type="submit" class="save-btn" id="submitBtn" disabled>
             Profil speichern
           </button>
         </form>
       </section>
-      <!--Section secondaire à droite-->
+
       <aside class="profile-progress">
         <h3>Dein Profil vervollständigen</h3>
+
         <ul>
           <li id="check-photo">➖ Profilbild optional</li>
           <li id="check-fullname">➖ Vor- Nachname eingeben</li>
           <li id="check-email">➖ Universitäts Email eingeben</li>
+          <li id="check-password">➖ Passwort eingeben</li>
+          <li id="check-confirm-password">➖ Passwort bestätigen</li>
           <li id="check-faculty">➖ Fakultät eintragen</li>
-          <li id= "check-fachbereich">➖ Fachbereich eintragen</li>
-          <!--Reflechir encore si le semestre doit apparaitre sous forme de liste deroulante ou bien l'utilisateur doit entrer lui meme son semestre-->
+          <li id="check-fachbereich">➖ Fachbereich eintragen</li>
           <li id="check-semester">➖ Semester hinzufügen</li>
           <li id="check-about">➖ Beschreibung hinzufügen</li>
         </ul>
       </aside>
     </main>
+
     <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
-    <script src="signup.js"></script>
+    <script type="module" src="signup.js"></script>
   </body>
 </html>

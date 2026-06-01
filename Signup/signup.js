@@ -1,9 +1,48 @@
+import { app } from "../firebase-config.js";
+
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  serverTimestamp,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
 const form = document.getElementById("registrationForm");
 const submitBtn = document.getElementById("submitBtn");
+
+const uploadPhoto = document.getElementById("uploadPhoto");
+const profilePreview = document.getElementById("profilePreview");
+
+const fullnameInput = document.getElementById("fullname");
+const emailInput = document.getElementById("email");
+const passwordInput = document.getElementById("password");
+const confirmPasswordInput = document.getElementById("confirmPassword");
+const facultyInput = document.getElementById("faculty");
+const fachbereichInput = document.getElementById("fachbereich");
+const semesterInput = document.getElementById("semester");
+
+/* =========================
+   QUILL EDITOR
+========================= */
 const quill = new Quill("#editor", {
   theme: "snow",
-
-  placeholder: "Suche Lernpartner...",
+  placeholder: "Schreibe kurz etwas über dich...",
 
   modules: {
     toolbar: [
@@ -14,124 +53,252 @@ const quill = new Quill("#editor", {
   },
 });
 
-// ===== PREVIEW PHOTO =====
-const uploadPhoto = document.getElementById("uploadPhoto");
-const profilePreview = document.getElementById("profilePreview");
-
+/* =========================
+   PHOTO PREVIEW
+========================= */
 uploadPhoto.addEventListener("change", function () {
   const file = this.files[0];
 
   if (file) {
     profilePreview.src = URL.createObjectURL(file);
   }
+
+  checkFormValid();
 });
 
-// ===== VALIDATION EN TEMPS RÉEL =====
-function checkFormValid() {
-  const email = form.email.value;
-  const fullname = document.getElementById("fullname").value;
-  const faculty = document.getElementById("faculty").value;
-  const fachbereich = document.getElementById("fachbereich").value;
-  const semester = document.getElementById("semester").value;
-  const about = quill.getText().trim();
-  const photo = document.getElementById("uploadPhoto").files.length;
-
-  // ===== EMAIL =====
-  if (email.endsWith("@uni-wuppertal.de")) {
-    document.getElementById("check-email").innerHTML = "✅ Email valide";
-    document.getElementById("check-email").className = "valid";
-  } else {
-    document.getElementById("check-email").innerHTML = "❌ Email invalide";
-    document.getElementById("check-email").className = "invalid";
-  }
-
-  // ===== FACULTY =====
-  if (faculty.trim() !== "") {
-    document.getElementById("check-faculty").innerHTML =
-      "✅ Fakultät eingetragen";
-    document.getElementById("check-faculty").className = "valid";
-  } else {
-    document.getElementById("check-faculty").innerHTML = "❌ Fakultät fehlt";
-    document.getElementById("check-faculty").className = "invalid";
-  }
-
-  // ===== FACHBEREICH =====
-  if(fachbereich.trim() !== "") {
-    document.getElementById("check-fachbereich").innerHTML =
-      "✅ Fachbereich eingetragen";
-      document.getElementById("check-fachbereich").className = "valid"; 
-  } else {
-    document.getElementById("check-fachbereich").innerHTML = "❌ Fachbereich fehlt"
-    document.getElementById("check-fachbereich").className = "invalid";
-  }
-
-  // ===== FULLNAME =====
-  if (fullname.trim() !== "") {
-    document.getElementById("check-fullname").innerHTML =
-      "✅ Vor- Nachname hinzugefügt";
-    document.getElementById("check-fullname").className = "valid";
-  } else {
-    document.getElementById("check-fullname").innerHTML =
-      "❌ Vor- Nachname fehlt";
-    document.getElementById("check-fullname").className = "invalid";
-  }
-
-  // ===== SEMESTER =====
-  if (semester.trim() !== "") {
-    document.getElementById("check-semester").innerHTML =
-      "✅ Semester ausgewählt";
-    document.getElementById("check-semester").className = "valid";
-  } else {
-    document.getElementById("check-semester").innerHTML = "❌ Semester fehlt";
-    document.getElementById("check-semester").className = "invalid";
-  }
-
-  // ===== ABOUT =====
-  if (about.trim() !== "") {
-    document.getElementById("check-about").innerHTML =
-      "✅ Beschreibung hinzugefügt";
-    document.getElementById("check-about").className = "valid";
-  } else {
-    document.getElementById("check-about").innerHTML = "❌ Beschreibung fehlt";
-    document.getElementById("check-about").className = "invalid";
-  }
-
-  // ===== PHOTO (OPTIONNELLE) =====
-  if (photo > 0) {
-    document.getElementById("check-photo").innerHTML =
-      "✅ Profilbild hinzugefügt";
-    document.getElementById("check-photo").className = "valid";
-  } else {
-    document.getElementById("check-photo").innerHTML = "➖ Profilbild optional";
-    document.getElementById("check-photo").className = "neutral";
-  }
-
-  // ===== ACTIVER / BLOQUER BOUTON =====
-  if (
-    email.endsWith("@uni-wuppertal.de") &&
-    faculty.trim() !== "" &&
-    fullname.trim() !== "" &&
-    fachbereich.trim() !== "" &&
-    semester.trim() !== "" &&
-    about.trim() !== ""
-  ) {
-    submitBtn.disabled = false;
-  } else {
-    submitBtn.disabled = true;
-  }
+/* =========================
+   VALIDATION HELPERS
+========================= */
+function setValid(id, message) {
+  const element = document.getElementById(id);
+  element.innerHTML = message;
+  element.className = "valid";
 }
 
-// ===== SUBMIT FORM =====
-form.addEventListener("submit", function (event) {
+function setInvalid(id, message) {
+  const element = document.getElementById(id);
+  element.innerHTML = message;
+  element.className = "invalid";
+}
+
+function setNeutral(id, message) {
+  const element = document.getElementById(id);
+  element.innerHTML = message;
+  element.className = "neutral";
+}
+
+function isUniversityEmail(email) {
+  return email.endsWith("@uni-wuppertal.de");
+}
+
+function isPasswordValid(password) {
+  return password.length >= 6;
+}
+
+function passwordsMatch(password, confirmPassword) {
+  return password !== "" && password === confirmPassword;
+}
+
+/* =========================
+   VALIDATION EN TEMPS RÉEL
+========================= */
+function checkFormValid() {
+  const fullname = fullnameInput.value.trim();
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+  const confirmPassword = confirmPasswordInput.value.trim();
+  const faculty = facultyInput.value.trim();
+  const fachbereich = fachbereichInput.value.trim();
+  const semester = semesterInput.value.trim();
+  const about = quill.getText().trim();
+  const photo = uploadPhoto.files.length;
+
+  const fullnameValid = fullname !== "";
+  const emailValid = isUniversityEmail(email);
+  const passwordValid = isPasswordValid(password);
+  const confirmPasswordValid = passwordsMatch(password, confirmPassword);
+  const facultyValid = faculty !== "";
+  const fachbereichValid = fachbereich !== "";
+  const semesterValid = semester !== "";
+  const aboutValid = about !== "";
+
+  if (photo > 0) {
+    setValid("check-photo", "✅ Profilbild hinzugefügt");
+  } else {
+    setNeutral("check-photo", "➖ Profilbild optional");
+  }
+
+  if (fullnameValid) {
+    setValid("check-fullname", "✅ Vor- Nachname eingegeben");
+  } else {
+    setInvalid("check-fullname", "❌ Vor- Nachname fehlt");
+  }
+
+  if (emailValid) {
+    setValid("check-email", "✅ Universitäts Email gültig");
+  } else {
+    setInvalid("check-email", "❌ Email muss mit @uni-wuppertal.de enden");
+  }
+
+  if (passwordValid) {
+    setValid("check-password", "✅ Passwort gültig");
+  } else {
+    setInvalid("check-password", "❌ Passwort mindestens 6 Zeichen");
+  }
+
+  if (confirmPasswordValid) {
+    setValid("check-confirm-password", "✅ Passwörter stimmen überein");
+  } else {
+    setInvalid("check-confirm-password", "❌ Passwörter stimmen nicht überein");
+  }
+
+  if (facultyValid) {
+    setValid("check-faculty", "✅ Fakultät eingetragen");
+  } else {
+    setInvalid("check-faculty", "❌ Fakultät fehlt");
+  }
+
+  if (fachbereichValid) {
+    setValid("check-fachbereich", "✅ Fachbereich eingetragen");
+  } else {
+    setInvalid("check-fachbereich", "❌ Fachbereich fehlt");
+  }
+
+  if (semesterValid) {
+    setValid("check-semester", "✅ Semester ausgewählt");
+  } else {
+    setInvalid("check-semester", "❌ Semester fehlt");
+  }
+
+  if (aboutValid) {
+    setValid("check-about", "✅ Beschreibung hinzugefügt");
+  } else {
+    setInvalid("check-about", "❌ Beschreibung fehlt");
+  }
+
+  submitBtn.disabled = !(
+    fullnameValid &&
+    emailValid &&
+    passwordValid &&
+    confirmPasswordValid &&
+    facultyValid &&
+    fachbereichValid &&
+    semesterValid &&
+    aboutValid
+  );
+}
+
+/* =========================
+   UPLOAD PHOTO
+========================= */
+async function uploadProfilePhoto(uid, file) {
+  if (!file) {
+    return "";
+  }
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Nur Bilddateien sind erlaubt.");
+  }
+
+  const maxImageSize = 25 * 1024 * 1024;
+
+  if (file.size > maxImageSize) {
+    throw new Error("Das Profilbild darf maximal 25 MB groß sein.");
+  }
+
+  const safeFileName = `${Date.now()}-${file.name.replaceAll("/", "-")}`;
+  const photoRef = ref(storage, `profile-photos/${uid}/${safeFileName}`);
+
+  await uploadBytes(photoRef, file);
+
+  return getDownloadURL(photoRef);
+}
+
+/* =========================
+   SUBMIT
+========================= */
+form.addEventListener("submit", async function (event) {
   event.preventDefault();
-  alert("Profil erfolgreich gespeichert ✅");
+
+  checkFormValid();
+
+  if (submitBtn.disabled) {
+    alert("Bitte fülle zuerst alle Pflichtfelder korrekt aus.");
+    return;
+  }
+
+  const fullname = fullnameInput.value.trim();
+  const email = emailInput.value.trim();
+  const password = passwordInput.value.trim();
+  const faculty = facultyInput.value.trim();
+  const fachbereich = fachbereichInput.value.trim();
+  const semester = semesterInput.value.trim();
+
+  const aboutText = quill.getText().trim();
+  const aboutHTML = quill.root.innerHTML;
+
+  const photoFile = uploadPhoto.files[0] || null;
+
+  try {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Profil wird gespeichert...";
+
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    const uid = userCredential.user.uid;
+
+    const photoURL = await uploadProfilePhoto(uid, photoFile);
+
+    await setDoc(doc(db, "users", uid), {
+      uid,
+      fullname,
+      email,
+      photoURL,
+
+      faculty,
+      fachbereich,
+      semester,
+
+      aboutText,
+      aboutHTML,
+
+      activeCourses: [],
+
+      online: false,
+      lastSeen: null,
+
+      blockedUsers: [],
+
+      createdAt: serverTimestamp(),
+    });
+
+    alert("Profil erfolgreich gespeichert ✅");
+    window.location.href = "../Partners/partners.html";
+  } catch (error) {
+    console.error(error);
+
+    alert("Registrierung fehlgeschlagen: " + error.message);
+
+    submitBtn.textContent = "Profil speichern";
+    checkFormValid();
+  }
 });
 
-// ===== ÉCOUTEURS TEMPS RÉEL =====
-form.email.addEventListener("input", checkFormValid);
-document.getElementById("faculty").addEventListener("input", checkFormValid);
-document.getElementById("semester").addEventListener("input", checkFormValid);
+/* =========================
+   EVENTS TEMPS RÉEL
+========================= */
+fullnameInput.addEventListener("input", checkFormValid);
+emailInput.addEventListener("input", checkFormValid);
+passwordInput.addEventListener("input", checkFormValid);
+confirmPasswordInput.addEventListener("input", checkFormValid);
+facultyInput.addEventListener("input", checkFormValid);
+fachbereichInput.addEventListener("input", checkFormValid);
+semesterInput.addEventListener("input", checkFormValid);
+
 quill.on("text-change", checkFormValid);
-document
-  .getElementById("uploadPhoto")
-  .addEventListener("change", checkFormValid);
+
+checkFormValid();
