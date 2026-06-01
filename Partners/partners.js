@@ -1,131 +1,144 @@
+import { app } from "../firebase-config.js";
+
+import {
+  getAuth,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+import {
+  getFirestore,
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+const auth = getAuth(app);
+const db = getFirestore(app);
 const searchForm = document.getElementById("partnerSearchForm");
 const searchInput = document.getElementById("partnerSearchInput");
 const partnersList = document.getElementById("partnersList");
 const suggestionsList = document.getElementById("suggestionsList");
 
-// Données fictives pour tester la page
-const users = [
-  {
-    id: 1,
-    name: "Anna Müller",
-    photo: "user-placeholder.jpg",
-    faculty: "Informatik",
-    semester: "4",
-    about:
-      "Ich suche Lernpartner für Statistik 2. Ich helfe gerne bei Grundlagen und Übungen.",
-    courses: ["Statistik 2", "Mathematik A", "Java"],
-  },
-  {
-    id: 2,
-    name: "Janile Shönser",
-    photo: "user-placeholder.jpg",
-    faculty: "Wirtschaftswissenschaft",
-    semester: "4",
-    about:
-      "Suche Lernpartner für den Statistik-Kurs und gemeinsame Prüfungsvorbereitung.",
-    courses: ["Statistik 2", "Marktforschung", "BWL Grundlagen"],
-  },
-  {
-    id: 3,
-    name: "Elias Gettere",
-    photo: "user-placeholder.jpg",
-    faculty: "Informatik",
-    semester: "6",
-    about:
-      "Ich lerne gerne in kleinen Gruppen und kann bei Programmierung unterstützen.",
-    courses: ["Java", "Algorithmen und Datenstrukturen", "Statistik 2"],
-  },
-  {
-    id: 4,
-    name: "Amira Müller",
-    photo: "user-placeholder.jpg",
-    faculty: "Mathematik",
-    semester: "2",
-    about:
-      "Ich suche jemanden zum regelmäßigen Lernen und gegenseitigen Erklären.",
-    courses: ["Lineare Algebra", "Mathematik A", "Stochastik"],
-  },
-  {
-    id: 5,
-    name: "Paul Schneider",
-    photo: "user-placeholder.jpg",
-    faculty: "Elektrotechnik",
-    semester: "5",
-    about:
-      "Lerne am liebsten mit Karteikarten und alten Klausuren.",
-    courses: ["Automatisierungstechnik", "Java", "Statistik 2"],
-  },
-  {
-    id: 6,
-    name: "Laura Becker",
-    photo: "user-placeholder.jpg",
-    faculty: "Wirtschaftswissenschaft",
-    semester: "3",
-    about:
-      "Ich suche Austausch für Marktforschung und Statistik.",
-    courses: ["Marktforschung", "Statistik 2", "Marketing"],
-  },
-];
+let currentUser = null;
+let allUsers = [];
+let myCourses = [];
 
-// Exemple : cours de l'utilisateur connecté
-// Plus tard, tu peux utiliser les cours enregistrés depuis courses.js avec localStorage.
-const myCourses = JSON.parse(localStorage.getItem("courses")) || [];
+/* =========================
+   UTILITAIRES
+========================= */
 
-function normalizeText(text) {
+function normalizeText(text = "") {
   return text
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-function getCommonCourses(userCourses, searchedCourse) {
-  const query = normalizeText(searchedCourse);
-
-  return userCourses.filter((course) => normalizeText(course).includes(query));
+function escapeHTML(text = "") {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
+
+/* =========================
+   CHARGER UTILISATEUR ACTUEL
+========================= */
+
+async function loadCurrentUserProfile() {
+  const userSnap = await getDoc(doc(db, "users", currentUser.uid));
+
+  if (!userSnap.exists()) {
+    alert("Bitte zuerst dein Profil vervollständigen.");
+    window.location.href = "../Signup/signup.html";
+    return;
+  }
+
+  const userData = userSnap.data();
+  myCourses = userData.activeCourses || [];
+}
+
+/* =========================
+   CHARGER TOUS LES UTILISATEURS
+========================= */
+
+async function loadUsers() {
+  const usersSnap = await getDocs(collection(db, "users"));
+
+  allUsers = usersSnap.docs
+    .map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    }))
+    .filter((user) => user.id !== currentUser.uid);
+}
+
+/* =========================
+   AFFICHAGE CARTE PARTENAIRE
+========================= */
 
 function createPartnerCard(user, commonCourses) {
   const card = document.createElement("article");
   card.className = "partner-card";
 
+  const fullname = user.fullname || "Unbekannter Nutzer";
+  const photoURL = user.photoURL || "user-placeholder.jpg";
+  const faculty = user.faculty || "-";
+  const semester = user.semester || "-";
+  const about = user.aboutText || user.about || "-";
+
   card.innerHTML = `
     <div class="partner-header">
-      <img class="partner-photo" src="${user.photo}" alt="Profilbild von ${user.name}" />
+      <img
+        class="partner-photo"
+        src="${escapeHTML(photoURL)}"
+        alt="Profilbild von ${escapeHTML(fullname)}"
+      />
 
       <div>
-        <h3 class="partner-name">${user.name}</h3>
+        <h3 class="partner-name">${escapeHTML(fullname)}</h3>
+
         <div class="partner-meta">
-          <div>${user.faculty}</div>
-          <div>Semester: ${user.semester}</div>
+          <div>${escapeHTML(faculty)}</div>
+          <div>Semester: ${escapeHTML(semester)}</div>
         </div>
       </div>
     </div>
 
     <div class="partner-section">
       <strong>Gemeinsame Kurse:</strong>
-      ${commonCourses.join(", ")}
+      ${commonCourses.length > 0 ? escapeHTML(commonCourses.join(", ")) : "Keine"}
     </div>
 
     <div class="partner-section partner-about">
       <strong>Über mich</strong>
-      ${user.about}
+      ${escapeHTML(about)}
     </div>
 
     <div class="partner-actions">
-      <button class="profile-btn" data-user-id="${user.id}">Profil ansehen</button>
-      <button class="request-btn" data-user-id="${user.id}">Anfrage senden</button>
+      <button class="profile-btn" type="button">
+        Profil ansehen
+      </button>
+
+      <button class="request-btn" type="button">
+        Anfrage senden
+      </button>
     </div>
   `;
 
-  const profileBtn = card.querySelector(".profile-btn");
-  const requestBtn = card.querySelector(".request-btn");
-
-  profileBtn.addEventListener("click", () => {
+  card.querySelector(".profile-btn").addEventListener("click", () => {
     showProfile(user);
   });
 
-  requestBtn.addEventListener("click", () => {
-    sendRequest(user);
+  card.querySelector(".request-btn").addEventListener("click", async () => {
+    await sendRequest(user);
   });
 
   return card;
@@ -141,22 +154,29 @@ function renderPartners(results) {
   }
 
   results.forEach((result) => {
-    const card = createPartnerCard(result.user, result.commonCourses);
-    partnersList.appendChild(card);
+    partnersList.appendChild(
+      createPartnerCard(result.user, result.commonCourses)
+    );
   });
 }
 
-function searchPartners(query) {
-  const normalizedQuery = normalizeText(query);
+/* =========================
+   RECHERCHE PARTENAIRE
+========================= */
+
+function searchPartners(searchValue) {
+  const normalizedQuery = normalizeText(searchValue);
 
   if (!normalizedQuery) {
     renderPartners([]);
     return;
   }
 
-  const results = users
+  const results = allUsers
     .map((user) => {
-      const commonCourses = user.courses.filter((course) =>
+      const courses = user.activeCourses || user.courses || [];
+
+      const commonCourses = courses.filter((course) =>
         normalizeText(course).includes(normalizedQuery)
       );
 
@@ -170,19 +190,123 @@ function searchPartners(query) {
   renderPartners(results);
 }
 
+/* =========================
+   PROFIL
+========================= */
+
 function showProfile(user) {
+  const courses = user.activeCourses || user.courses || [];
+
   alert(
-    `Profil von ${user.name}\n\n` +
-      `Fachbereich: ${user.faculty}\n` +
-      `Semester: ${user.semester}\n` +
-      `Kurse: ${user.courses.join(", ")}\n\n` +
-      `Über mich:\n${user.about}`
+    `Profil von ${user.fullname || "Unbekannter Nutzer"}\n\n` +
+      `Fakultät: ${user.faculty || "-"}\n` +
+      `Fachbereich: ${user.fachbereich || "-"}\n` +
+      `Semester: ${user.semester || "-"}\n` +
+      `Kurse: ${courses.join(", ") || "-"}\n\n` +
+      `Über mich:\n${user.aboutText || user.about || "-"}`
   );
 }
 
-function sendRequest(user) {
-  alert(`Anfrage an ${user.name} wurde gesendet ✅`);
+/* =========================
+   DEMANDE PARTENAIRE
+========================= */
+
+async function requestAlreadyExists(senderId, receiverId) {
+  const directRequestSnap = await getDocs(
+    query(
+      collection(db, "partnerRequests"),
+      where("senderId", "==", senderId),
+      where("receiverId", "==", receiverId)
+    )
+  );
+
+  if (!directRequestSnap.empty) {
+    return true;
+  }
+
+  const reverseRequestSnap = await getDocs(
+    query(
+      collection(db, "partnerRequests"),
+      where("senderId", "==", receiverId),
+      where("receiverId", "==", senderId)
+    )
+  );
+
+  return !reverseRequestSnap.empty;
 }
+
+async function sendRequest(user) {
+  if (!currentUser) {
+    alert("Bitte zuerst anmelden.");
+    window.location.href = "../Login/login.html";
+    return;
+  }
+
+  const senderId = currentUser.uid;
+  const receiverId = user.id;
+
+  if (senderId === receiverId) {
+    alert("Du kannst dir selbst keine Anfrage senden.");
+    return;
+  }
+
+  const exists = await requestAlreadyExists(senderId, receiverId);
+
+  if (exists) {
+    alert("Zwischen euch existiert bereits eine Anfrage oder Lernpartnerschaft.");
+    return;
+  }
+
+  await addDoc(collection(db, "partnerRequests"), {
+    senderId,
+    receiverId,
+    status: "pending",
+    createdAt: serverTimestamp(),
+    acceptedAt: null,
+    rejectedAt: null,
+  });
+
+  alert("Anfrage gesendet ✅");
+}
+
+/* =========================
+   SUGGESTIONS
+========================= */
+
+function renderSuggestions() {
+  suggestionsList.innerHTML = "";
+
+  if (!Array.isArray(myCourses) || myCourses.length === 0) {
+    suggestionsList.innerHTML =
+      '<p class="empty-message">Noch keine Kurse hinzugefügt.</p>';
+    return;
+  }
+
+  myCourses.forEach((course) => {
+    const courseName = typeof course === "string" ? course : course.name;
+
+    if (!courseName) return;
+
+    const item = document.createElement("div");
+    item.className = "suggestion-item";
+
+    item.innerHTML = `
+      <strong>Gemeinsamer Kurs:</strong><br />
+      ${escapeHTML(courseName)}
+    `;
+
+    item.addEventListener("click", () => {
+      searchInput.value = courseName;
+      searchPartners(courseName);
+    });
+
+    suggestionsList.appendChild(item);
+  });
+}
+
+/* =========================
+   EVENTS
+========================= */
 
 searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -193,41 +317,31 @@ searchInput.addEventListener("input", () => {
   searchPartners(searchInput.value);
 });
 
-function renderSuggestions() {
-  suggestionsList.innerHTML = "";
+/* =========================
+   INIT
+========================= */
 
-  if (myCourses.length === 0) {
-    suggestionsList.innerHTML =
-      '<p class="empty-message">Noch keine Kurse hinzugefügt.</p>';
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    alert("Bitte zuerst anmelden.");
+    window.location.href = "../Login/login.html";
     return;
   }
 
-  myCourses.forEach((course) => {
-    const item = document.createElement("div");
-    item.className = "suggestion-item";
-    item.innerHTML = `
-      <strong>Gemeinsamer Kurs:</strong><br />
-      ${course.name}<br />
-      <small>${course.semester} - ${course.faculty}</small>
-    `;
+  currentUser = user;
 
-    item.addEventListener("click", () => {
-      searchInput.value = course.name;
-      searchPartners(course.name);
-    });
+  await loadCurrentUserProfile();
+  await loadUsers();
 
-    suggestionsList.appendChild(item);
-  });
-}
+  renderSuggestions();
 
+  if (myCourses.length > 0) {
+    const firstCourse =
+      typeof myCourses[0] === "string" ? myCourses[0] : myCourses[0].name;
 
-// Initialisation
-renderSuggestions();
-
-if (myCourses.length > 0) {
-  searchInput.value = myCourses[0].name;
-  searchPartners(myCourses[0].name);
-} else {
-  renderPartners([]);
-}
-
+    searchInput.value = firstCourse;
+    searchPartners(firstCourse);
+  } else {
+    renderPartners([]);
+  }
+});
