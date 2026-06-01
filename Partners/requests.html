@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partneranfragen - BUW</title>
+  <link rel="stylesheet" href="requests.css">
+</head>
+
+<body>
+
+<header>
+  <div class="logo">BUW</div>
+
+  <div class="header-actions">
+    <button onclick="window.location.href='partners.html'" class="back-btn">
+      ← Zurück
+    </button>
+  </div>
+</header>
+
+<main class="requests-page">
+
+  <section class="requests-section">
+    <h1>Erhaltene Anfragen</h1>
+    <div id="receivedRequestsList" class="requests-list">
+      <p class="empty-message">Keine erhaltenen Anfragen.</p>
+    </div>
+  </section>
+
+  <section class="requests-section">
+    <h1>Gesendete Anfragen</h1>
+    <div id="sentRequestsList" class="requests-list">
+      <p class="empty-message">Keine gesendeten Anfragen.</p>
+    </div>
+  </section>
+
+</main>
+
+<script type="module" src="requests.js"></script>
+
+</body>
+</html>
