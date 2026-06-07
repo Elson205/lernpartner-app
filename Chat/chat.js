@@ -35,6 +35,10 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+// Desactivation temporaire du stockage.
+// Plus tard apres etre passe a Blaze on pourra de nouveau le reativer
+const STORAGE_ENABLED = false;
+
 const chatPage = document.getElementById("chatPage");
 
 const contactsList = document.getElementById("contactsList");
@@ -590,7 +594,29 @@ async function sendMessage() {
   let fileName = "";
   let fileType = "";
 
+  //Modifier cette partie plus tard apres l'ajout du Storage (Supprimer le attachedFile du sessous et ajouter celui en commentaire)
+
+  /*if (attachedFile) {
+    const validation = validateFile(attachedFile);
+
+    if (!validation.ok) {
+      alert(validation.message);
+      return;
+    }
+
+    fileURL = await uploadAttachedFile(activeChatId, attachedFile);
+    fileName = attachedFile.name;
+    fileType = attachedFile.type;
+  }*/
+
   if (attachedFile) {
+    if (!STORAGE_ENABLED) {
+      alert(
+        "Dateianhänge sind momentan deaktiviert. Firebase Storage ist noch nicht aktiviert.",
+      );
+      return;
+    }
+
     const validation = validateFile(attachedFile);
 
     if (!validation.ok) {
@@ -653,6 +679,15 @@ messageForm.addEventListener("submit", async (event) => {
 });
 
 fileInput.addEventListener("change", () => {
+  // Affichage d'un message d'alerte pour preciser que le Storage n'est pas encore disponible
+  if (!STORAGE_ENABLED) {
+    alert("Dateianhänge sind momentan deaktiviert.");
+    fileInput.value = "";
+    attachedFile = null;
+    filePreview.textContent = "";
+    return;
+  }
+
   attachedFile = fileInput.files[0] || null;
 
   if (!attachedFile) {

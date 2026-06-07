@@ -23,6 +23,10 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+// Desactivation temporaire du stockage.
+// Plus tard apres etre passe a Blaze on pourra de nouveau le reativer
+const STORAGE_ENABLED = false;
+
 const form = document.getElementById("registrationForm");
 const submitBtn = document.getElementById("submitBtn");
 
@@ -274,12 +278,17 @@ form.addEventListener("submit", async function (event) {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
-      password
+      password,
     );
 
     const uid = userCredential.user.uid;
+    // Plus tard lorsque Storage sera active il faudra supprimer cette partie(let et if) et garder uniquement:
+    // const photoURL = await uploadProfilePhoto(uid, photoFile);
+    let photoURL = "user-placeholder.jpg";
 
-    const photoURL = await uploadProfilePhoto(uid, photoFile);
+    if (photoFile && STORAGE_ENABLED) {
+      photoURL = await uploadProfilePhoto(uid, photoFile);
+    }
 
     await setDoc(doc(db, "users", uid), {
       uid,
