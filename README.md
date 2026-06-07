@@ -2,243 +2,418 @@
 
 ## 📌 Project Description
 
-BUW Study Matching Platform is a web platform designed for students at the University of Wuppertal to easily find study partners and create academic connections based on courses, faculties, and semesters.
+BUW Study Matching Platform is a web application designed for students at the University of Wuppertal.  
+The goal is to help students find study partners based on their courses, faculty, semester and academic interests.
 
-The main objective of the project is to simplify the search for study partners and encourage collaboration between students.
+Users can create a profile, add their courses, search for compatible students, send study partner requests and chat with accepted partners.
 
---------------------------------------------------------
+---
 
-# 🎯 Project Objectives
+## 🎯 Project Goals
 
-* Allow students to create a university profile
-* Facilitate matching between students taking the same courses
-* Improve the organization of study groups
-* Provide a modern and intuitive interface
-* Develop a modern frontend project using HTML, CSS, and JavaScript
+- Create a university profile
+- Register and log in securely
+- Add and manage courses
+- Find students with similar courses
+- Send and receive partner requests
+- Create private chats after accepted requests
+- Provide a modern and responsive user interface
 
-# 🛠️ Technologies Used
+---
 
-## Frontend
+## 🛠️ Technologies Used
 
-* HTML5
-* CSS3
-* JavaScript (Vanilla JS)
-* Quill.js (rich text editor)
+### Frontend
 
-## Development Tools
+- HTML5
+- CSS3
+- Vanilla JavaScript
+- Quill.js
 
-* Visual Studio Code
-* Git
-* GitHub
+### Backend / Cloud Services
 
---------------------------------------------------------
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Storage planned
+- Firebase Hosting planned
 
-# ✨ Features Currently Implemented
+### Tools
 
-## ✅ Modern User Interface
+- Visual Studio Code
+- Git
+- GitHub
+- Firebase Console
+- Live Server
 
-* Responsive design
-* Flexbox layout
-* Modern cards with shadows and animations
-* Interface inspired by modern platforms
+---
 
-## ✅ Registration System
+## ✨ Implemented Features
+
+### ✅ Registration
+
+Users can create a profile with:
+
+- Full name
+- University email
+- Password and password confirmation
+- Faculty
+- Field of study
+- Semester
+- Personal description
+- Optional profile picture
+
+The form includes real-time validation for required fields, email format and password confirmation.
+
+---
+
+### ✅ Login
+
+Firebase Authentication is used for:
+
+- User registration
+- User login
+- Authentication state checking
+- Protected pages
+
+Private pages such as Courses, Partners, Requests and Chat require a logged-in user.
+
+---
+
+### ✅ User Profiles
+
+User profiles are stored in Cloud Firestore.
+
+Example structure:
+
+```js
+users/{uid}
+{
+  uid: "user-id",
+  fullname: "Max Mustermann",
+  email: "max@uni-wuppertal.de",
+  photoURL: "user-placeholder.jpg",
+  faculty: "Mathematik und Naturwissenschaften",
+  fachbereich: "Informatik",
+  semester: "3-4",
+  aboutText: "I am looking for a study partner.",
+  activeCourses: [],
+  online: false,
+  lastSeen: null,
+  createdAt: Timestamp
+}
+```
+
+---
+
+### ✅ Course Management
 
 Users can:
 
-* Add their full name
-* Add their university email
-* Add their faculty
-* Select their semester
-* Add a personal description
-* Add a profile picture (optional)
+- Add courses
+- Select semester
+- Select faculty
+- Search courses
+- Delete courses
+- Avoid duplicate courses
 
---------------------------------------------------------
+Courses are stored in the user profile:
 
-## ✅ Real-Time Validation
+```js
+users/{uid}.activeCourses
+```
 
-The form automatically checks:
+---
 
-* The validity of the university email
-* Required fields
-* Profile completion
+### ✅ Partner Search
 
-Validations are displayed dynamically with:
+Users can search for study partners based on courses.
 
-* ✅ Valid fields
-* ❌ Invalid fields
-* ➖ Optional fields
+The page displays:
 
---------------------------------------------------------
+- Matching students
+- Common courses
+- Faculty
+- Semester
+- Profile information
 
-## ✅ Dynamic Profile Picture Management
+Users can send a partner request from this page.
 
-* Instant image preview
-* Automatic resizing
-* Support for image formats
-* Custom styled upload
+---
 
---------------------------------------------------------
+### ✅ Partner Requests
 
-## ✅ Advanced Description Editor
+Requests connect the partner search with the chat system.
 
-Integration of Quill.js allowing:
+Request structure:
 
-* Bold text
-* Italic text
-* Underlined text
-* Lists
-* Links
+```js
+partnerRequests/{requestId}
+{
+  senderId: "uidA",
+  receiverId: "uidB",
+  status: "pending",
+  createdAt: Timestamp
+}
+```
 
---------------------------------------------------------
+Possible statuses:
 
-## ✅ Responsive Design
+- pending
+- accepted
+- rejected
 
-The website adapts to:
+When a request is accepted, a private chat is created.
 
-* computers
-* tablets
-* mobile phones
+---
 
---------------------------------------------------------
+### ✅ Private Chat
 
-# 🚧 Features to Develop
+The chat is only available between accepted study partners.
 
-## 🔲 Backend
+Features:
 
-* Creation of a backend server
-* API route management
-* Frontend/backend communication
+- Contact list based on accepted requests
+- Search contacts by name
+- Real-time text messages
+- Online/offline status
+- Last seen display
+- Responsive WhatsApp-like layout
 
-## 🔲 Database
+Chat structure:
 
-* User storage
-* Profile storage
-* Message storage
-* Course storage
+```js
+chats/{chatId}
+{
+  participants: ["uidA", "uidB"],
+  requestStatus: "confirmed",
+  lastMessage: "Hallo",
+  lastMessageAt: Timestamp,
+  unreadCount: {
+    uidA: 0,
+    uidB: 2
+  }
+}
+```
 
-## 🔲 Authentication
+Messages:
 
-* User login
-* Secure account creation
-* Session management
-* Password hashing
+```js
+chats/{chatId}/messages/{messageId}
+{
+  senderId: "uidA",
+  text: "Hallo!",
+  createdAt: Timestamp,
+  readBy: ["uidA"]
+}
+```
 
-## 🔲 Matching system
+---
 
-Development of a system allowing:
+### ✅ Profile Picture Preview
 
-* finding students based on courses
-* filtering by semester
-* filtering by faculty
-* automatically suggesting compatible study partners
+Users can preview their profile picture during registration.
 
---------------------------------------------------------
+A modal preview was added so the image can be opened in a larger view, similar to WhatsApp.
 
-## 🔲 Messaging
-* Private messaging system
-* Notifications
-* Contact request management
+---
 
---------------------------------------------------------
+## 📂 Project Structure
 
-## 🔲 Course Management
-* Dynamic course addition
-* Course search
-* Module filtering
+```bash
+LERNPARTNER-APP/
+│
+├── firebase-config.js
+│
+├── Signup/
+│   ├── sign.html
+│   ├── sign.css
+│   └── sign.js
+│
+├── Login/
+│   ├── login.html
+│   ├── login.css
+│   └── login.js
+│
+├── Courses/
+│   ├── courses.html
+│   ├── courses.css
+│   └── courses.js
+│
+├── Partners/
+│   ├── partners.html
+│   ├── partners.css
+│   ├── partners.js
+│   ├── requests.html
+│   ├── requests.css
+│   └── requests.js
+│
+├── Chat/
+│   ├── chat.html
+│   ├── chat.css
+│   └── chat.js
+│
+├── user-placeholder.jpg
+└── README.md
+```
 
---------------------------------------------------------
+---
 
-## 🔲 UI/UX Improvements
-* Dark mode
-* Advanced animations
-* Profile progress bar
-* User dashboard
-* Better mobile experience
+## 🔥 Firebase Setup
 
---------------------------------------------------------
+The project uses Firebase as backend service.
 
-# 📂 Current Project Structure
+The file `firebase-config.js` must be placed at the root of the project.
 
-    ´´´bash
-        project-folder/
-        │
-        ├── signup.html 
-        ├── signup.css
-        ├── signup.js
-        ├── user-placeholder.jpg
-        └── README.md
-    ´´´
---------------------------------------------------------
+Example:
 
-# ▶️ Run the Project
-## 1. Clone the repository
+```js
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 
-    ´´´ bash
-        git clone <repository-link>
-    ´´´
-## 2. Open the project
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.firebasestorage.app",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+export const app = initializeApp(firebaseConfig);
+```
+
+Because JavaScript files are inside subfolders, Firebase is imported like this:
+
+```js
+import { app } from "../firebase-config.js";
+```
+
+---
+
+## 🗄️ Firestore Collections
+
+Main collections:
+
+```bash
+users
+partnerRequests
+chats
+```
+
+Subcollection:
+
+```bash
+chats/{chatId}/messages
+```
+
+---
+
+## 📦 Firebase Storage
+
+Firebase Storage is planned for:
+
+- Profile pictures
+- Chat images
+- Documents
+- Audio files
+- Video files
+
+Currently, the project can still be developed with placeholder images and text messages if Storage is not activated.
+
+---
+
+## ▶️ Run Locally
+
+### 1. Clone the repository
+
+```bash
+git clone <repository-link>
+```
+
+### 2. Open the project
 
 Open the folder in Visual Studio Code.
 
---------------------------------------------------------
+### 3. Start Live Server
 
-## 3. Launch the website
+Use the Live Server extension.
 
-Simply open the file:
+Example URL:
 
-    ´´´ bash
-        signup.html
-    ´´´
+```bash
+http://127.0.0.1:5500
+```
 
-or use the extension:
+Do not open the files directly with `file://`, because Firebase module imports may not work correctly.
 
-* Live Server
+---
 
---------------------------------------------------------
+## 🧪 Testing Order
 
-## 📸 Project Preview
+1. Configure Firebase
+2. Activate Firebase Authentication
+3. Create Firestore Database
+4. Register a user in `Signup/sign.html`
+5. Check the user in Firebase Authentication
+6. Check the profile in Firestore under `users/{uid}`
+7. Log in with `Login/login.html`
+8. Add courses
+9. Search partners
+10. Send a request
+11. Accept the request
+12. Open the chat
 
-The project currently contains:
+---
 
-* a modern registration page
-* a dynamic validation system
-* profile picture management
-* a rich text description editor
+## 🚧 Features Still in Development
 
---------------------------------------------------------
+- Final Firestore security rules
+- Storage integration
+- File upload in chat
+- Message deletion
+- Message editing
+- Push notifications
+- Dashboard page
+- Dark mode
+- Profile editing
+- Better mobile navigation
 
-## 📚 Skills Practiced in This Project
+---
 
-* Structured HTML
-* Modern and responsive CSS
-* JavaScript DOM manipulation
-* Form validation
-* Event handling
-* Responsive design
-* UX/UI design
-* Frontend project organization
-* Use of external libraries
+## 🔮 Future Improvements
 
---------------------------------------------------------
+The platform could later support multiple universities.
 
-## 🚀 Future Objective
+Possible future technologies:
 
-Transform this platform into a real university application allowing:
+- Java Spring Boot backend
+- PostgreSQL database
+- WebSocket chat
+- REST API
+- Cloud object storage
 
-* intelligent student matching
-* creation of study groups
-* communication between students
-* collaborative organization of revision sessions
+---
 
---------------------------------------------------------
+## 📚 Skills Practiced
 
-# 👨‍💻 Author
+- HTML structure
+- Responsive CSS
+- JavaScript DOM manipulation
+- JavaScript modules
+- Form validation
+- Firebase Authentication
+- Cloud Firestore
+- Git and GitHub workflow
+- UI/UX design
+
+---
+
+## 👨‍💻 Author
+
 Project developed by:
 
-* Tetchoka Elson
+- Tetchoka Elson
 
---------------------------------------------------------
+---
 
 ## 📄 License
 
