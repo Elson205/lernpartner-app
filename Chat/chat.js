@@ -63,6 +63,11 @@ const logoutBtn = document.getElementById("logoutBtn");
 const partnersBtn = document.getElementById("partnersBtn");
 const requestsBtn = document.getElementById("requestsBtn");
 
+const photoModal = document.getElementById("photoModal");
+const photoModalImage = document.getElementById("photoModalImage");
+const photoModalName = document.getElementById("photoModalName");
+const closePhotoModal = document.getElementById("closePhotoModal");
+
 let currentUser = null;
 let chats = [];
 let activeChatId = null;
@@ -164,10 +169,10 @@ function validateFile(file) {
         category === "image"
           ? "Bild zu groß. Maximum: 25 MB."
           : category === "document"
-          ? "Dokument zu groß. Maximum: 50 MB."
-          : category === "audio"
-          ? "Audio zu groß. Maximum: 100 MB."
-          : "Video zu groß. Maximum: 500 MB.",
+            ? "Dokument zu groß. Maximum: 50 MB."
+            : category === "audio"
+              ? "Audio zu groß. Maximum: 100 MB."
+              : "Video zu groß. Maximum: 500 MB.",
     };
   }
 
@@ -184,7 +189,8 @@ function getFileIcon(fileType) {
   if (fileType.startsWith("audio/")) return "🎵";
   if (fileType.includes("pdf")) return "📄";
   if (fileType.includes("word")) return "📝";
-  if (fileType.includes("excel") || fileType.includes("spreadsheet")) return "📊";
+  if (fileType.includes("excel") || fileType.includes("spreadsheet"))
+    return "📊";
 
   return "📎";
 }
@@ -245,7 +251,7 @@ async function enrichChatsWithPartnerData(chatDocs) {
         ...chat,
         partner,
       };
-    })
+    }),
   );
 
   return enriched.filter((chat) => chat.partner);
@@ -294,6 +300,16 @@ function renderContacts(list = chats) {
 
       <span class="contact-time">${lastMessageTime}</span>
     `;
+    const avatar = item.querySelector(".contact-avatar");
+
+    avatar.addEventListener("click", (event) => {
+      event.stopPropagation();
+
+      openPhotoModal(
+        partner.photoURL || "user-placeholder.jpg",
+        partner.fullname || "Kontakt",
+      );
+    });
 
     item.addEventListener("click", () => {
       selectChat(chat.id);
@@ -313,12 +329,37 @@ function renderChatHeader(partner) {
     activeDot.classList.remove("offline");
   } else {
     chatPartnerStatus.textContent = `Zuletzt online: ${formatDate(
-      partner.lastSeen
+      partner.lastSeen,
     )}`;
     activeText.textContent = "Offline";
     activeDot.classList.add("offline");
   }
 }
+
+function openPhotoModal(photoURL, name) {
+  photoModalImage.src = photoURL || "user-placeholder.jpg";
+  photoModalName.textContent = name || "Profilbild";
+
+  photoModal.classList.add("open");
+}
+
+function closePhotoModalWindow() {
+  photoModal.classList.remove("open");
+}
+
+closePhotoModal.addEventListener("click", closePhotoModalWindow);
+
+photoModal.addEventListener("click", (event) => {
+  if (event.target === photoModal) {
+    closePhotoModalWindow();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closePhotoModalWindow();
+  }
+});
 
 function renderProfilePanel(partner) {
   profilePhoto.src = partner.photoURL || "user-placeholder.jpg";
@@ -330,6 +371,13 @@ function renderProfilePanel(partner) {
   profileLastSeen.textContent = partner.online
     ? "Jetzt online"
     : formatDate(partner.lastSeen);
+
+  profilePhoto.onclick = () => {
+    openPhotoModal(
+      partner.photoURL || "user-placeholder.jpg",
+      partner.fullname || "Kontakt",
+    );
+  };
 }
 
 function renderMessages(messages) {
@@ -356,15 +404,10 @@ function renderMessages(messages) {
     const isImage = message.fileType?.startsWith("image/");
 
     const readBy = message.readBy || [];
-    const partnerHasRead =
-      activePartner && readBy.includes(activePartner.id);
+    const partnerHasRead = activePartner && readBy.includes(activePartner.id);
 
     const checkMark =
-      message.senderId === currentUser.uid
-        ? partnerHasRead
-          ? "✓✓"
-          : "✓"
-        : "";
+      message.senderId === currentUser.uid ? (partnerHasRead ? "✓✓" : "✓") : "";
 
     row.innerHTML = `
       <div class="message-content">
@@ -410,7 +453,7 @@ function subscribeToChats() {
   const chatsQuery = query(
     collection(db, "chats"),
     where("participants", "array-contains", currentUser.uid),
-    orderBy("lastMessageAt", "desc")
+    orderBy("lastMessageAt", "desc"),
   );
 
   unsubscribeChats = onSnapshot(
@@ -443,7 +486,7 @@ function subscribeToChats() {
       console.error(error);
       contactsList.innerHTML =
         '<p class="empty-message contacts-empty">Chats konnten nicht geladen werden.</p>';
-    }
+    },
   );
 }
 
@@ -455,7 +498,7 @@ function subscribeToMessages(chatId) {
   const messagesQuery = query(
     collection(db, "chats", chatId, "messages"),
     orderBy("createdAt", "asc"),
-    limit(80)
+    limit(80),
   );
 
   unsubscribeMessages = onSnapshot(
@@ -473,7 +516,7 @@ function subscribeToMessages(chatId) {
       console.error(error);
       messagesList.innerHTML =
         '<p class="empty-message">Nachrichten konnten nicht geladen werden.</p>';
-    }
+    },
   );
 }
 
@@ -594,7 +637,7 @@ async function setUserOnlineStatus(isOnline) {
       online: isOnline,
       lastSeen: serverTimestamp(),
     },
-    { merge: true }
+    { merge: true },
   );
 }
 

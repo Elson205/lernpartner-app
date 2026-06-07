@@ -1,123 +1,137 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>Chat - BUW</title>
+    <title>Chat - BUW</title>
 
-  <link rel="stylesheet" href="chat.css" />
-</head>
+    <link rel="stylesheet" href="chat.css" />
+  </head>
 
-<body>
-  <header>
-    <div class="logo">BUW</div>
+  <body>
+    <header>
+      <div class="logo">BUW</div>
 
-    <div class="header-actions">
-      <button id="partnersBtn" class="header-btn">Partner finden</button>
-      <button id="requestsBtn" class="header-btn">Anfragen</button>
-      <button id="logoutBtn" class="login-btn">Abmelden</button>
-    </div>
-  </header>
+      <div class="header-actions">
+        <button id="partnersBtn" class="header-btn">Partner finden</button>
+        <button id="requestsBtn" class="header-btn">Anfragen</button>
+        <button id="logoutBtn" class="login-btn">Abmelden</button>
+      </div>
+    </header>
 
-  <main class="chat-page" id="chatPage">
-    <aside class="contacts-panel">
-      <div class="contact-search-row">
-        <div class="contact-search">
-          <span class="search-icon">⌕</span>
+    <main class="chat-page" id="chatPage">
+      <aside class="contacts-panel">
+        <div class="contact-search-row">
+          <div class="contact-search">
+            <span class="search-icon">⌕</span>
+
+            <input
+              type="text"
+              id="contactSearchInput"
+              placeholder="Kontakt suchen"
+              autocomplete="off"
+            />
+          </div>
+        </div>
+
+        <div id="contactsList" class="contacts-list">
+          <p class="empty-message contacts-empty">Keine Kontakte gefunden.</p>
+        </div>
+      </aside>
+
+      <section class="chat-panel">
+        <div class="chat-header">
+          <button id="backToContactsBtn" class="back-btn">‹</button>
+
+          <div>
+            <h1 id="chatPartnerName">Chat auswählen</h1>
+            <p id="chatPartnerStatus" class="chat-status">-</p>
+          </div>
+
+          <div class="active-indicator">
+            <span id="activeDot" class="active-dot offline"></span>
+            <span id="activeText">Offline</span>
+          </div>
+        </div>
+
+        <div id="messagesList" class="messages-list">
+          <p class="empty-message">Wähle einen Kontakt aus.</p>
+        </div>
+
+        <form id="messageForm" class="message-form">
+          <label for="fileInput" class="attach-btn" title="Datei anhängen">
+            📎
+          </label>
+
+          <input
+            type="file"
+            id="fileInput"
+            class="file-input"
+            accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,audio/*,video/*"
+          />
 
           <input
             type="text"
-            id="contactSearchInput"
-            placeholder="Kontakt suchen"
+            id="messageInput"
+            placeholder="Textnachricht senden..."
             autocomplete="off"
           />
-        </div>
-      </div>
 
-      <div id="contactsList" class="contacts-list">
-        <p class="empty-message contacts-empty">
-          Keine Kontakte gefunden.
-        </p>
-      </div>
-    </aside>
+          <button type="submit" class="send-btn">Senden</button>
+        </form>
 
-    <section class="chat-panel">
-      <div class="chat-header">
-        <button id="backToContactsBtn" class="back-btn">‹</button>
+        <p id="filePreview" class="file-preview"></p>
+      </section>
 
-        <div>
-          <h1 id="chatPartnerName">Chat auswählen</h1>
-          <p id="chatPartnerStatus" class="chat-status">-</p>
-        </div>
-
-        <div class="active-indicator">
-          <span id="activeDot" class="active-dot offline"></span>
-          <span id="activeText">Offline</span>
-        </div>
-      </div>
-
-      <div id="messagesList" class="messages-list">
-        <p class="empty-message">
-          Wähle einen Kontakt aus.
-        </p>
-      </div>
-
-      <form id="messageForm" class="message-form">
-        <label for="fileInput" class="attach-btn" title="Datei anhängen">
-          📎
-        </label>
-
-        <input
-          type="file"
-          id="fileInput"
-          class="file-input"
-          accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,audio/*,video/*"
+      <aside class="profile-panel">
+        <img
+          id="profilePhoto"
+          class="profile-photo"
+          src="user-placeholder.jpg"
+          alt="Profilbild"
         />
 
-        <input
-          type="text"
-          id="messageInput"
-          placeholder="Textnachricht senden..."
-          autocomplete="off"
-        />
+        <h2 id="profileName">-</h2>
 
-        <button type="submit" class="send-btn">
-          Senden
-        </button>
-      </form>
-
-      <p id="filePreview" class="file-preview"></p>
-    </section>
-
-    <aside class="profile-panel">
-      <img
-        id="profilePhoto"
-        class="profile-photo"
-        src="user-placeholder.jpg"
-        alt="Profilbild"
-      />
-
-      <h2 id="profileName">-</h2>
-
-      <div class="profile-info">
-        <p><strong>Fakultät:</strong> <span id="profileFaculty">-</span></p>
-        <p><strong>Fachbereich:</strong> <span id="profileFachbereich">-</span></p>
-        <p><strong>Semester:</strong> <span id="profileSemester">-</span></p>
-        <p><strong>Zuletzt online:</strong> <span id="profileLastSeen">-</span></p>
-      </div>
-
-      <hr />
-
-      <div class="request-status-box">
-        <h3>Status:</h3>
-        <div id="requestStatus" class="request-status confirmed">
-          Lernpartnerschaft bestätigt
+        <div class="profile-info">
+          <p><strong>Fakultät:</strong> <span id="profileFaculty">-</span></p>
+          <p>
+            <strong>Fachbereich:</strong> <span id="profileFachbereich">-</span>
+          </p>
+          <p><strong>Semester:</strong> <span id="profileSemester">-</span></p>
+          <p>
+            <strong>Zuletzt online:</strong> <span id="profileLastSeen">-</span>
+          </p>
         </div>
-      </div>
-    </aside>
-  </main>
 
-  <script type="module" src="chat.js"></script>
-</body>
+        <hr />
+
+        <div class="request-status-box">
+          <h3>Status:</h3>
+          <div id="requestStatus" class="request-status confirmed">
+            Lernpartnerschaft bestätigt
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- MODAL PHOTO DE PROFIL -->
+    <div id="photoModal" class="photo-modal">
+      <div class="photo-modal-content">
+        <button id="closePhotoModal" class="close-photo-modal">×</button>
+
+        <h2 id="photoModalName">Profilbild</h2>
+
+        <img
+          id="photoModalImage"
+          src="user-placeholder.jpg"
+          alt="Profilbild groß"
+          class="photo-modal-image"
+        />
+      </div>
+    </div>
+
+    <script type="module" src="chat.js"></script>
+  </body>
 </html>

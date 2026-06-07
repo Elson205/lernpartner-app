@@ -28,6 +28,9 @@ const submitBtn = document.getElementById("submitBtn");
 
 const uploadPhoto = document.getElementById("uploadPhoto");
 const profilePreview = document.getElementById("profilePreview");
+const photoModal = document.getElementById("photoModal");
+const photoModalImage = document.getElementById("photoModalImage");
+const closePhotoModal = document.getElementById("closePhotoModal");
 
 const fullnameInput = document.getElementById("fullname");
 const emailInput = document.getElementById("email");
@@ -213,6 +216,31 @@ async function uploadProfilePhoto(uid, file) {
 
   return getDownloadURL(photoRef);
 }
+
+function openPhotoModal() {
+  photoModalImage.src = profilePreview.src;
+  photoModal.classList.add("open");
+}
+
+function closePhotoModalWindow() {
+  photoModal.classList.remove("open");
+}
+
+profilePreview.addEventListener("click", openPhotoModal);
+
+closePhotoModal.addEventListener("click", closePhotoModalWindow);
+
+photoModal.addEventListener("click", (event) => {
+  if (event.target === photoModal) {
+    closePhotoModalWindow();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closePhotoModalWindow();
+  }
+});
 
 /* =========================
    SUBMIT
