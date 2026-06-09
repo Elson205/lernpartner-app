@@ -3,6 +3,7 @@ import { app } from "../firebase-config.js";
 import {
   getAuth,
   onAuthStateChanged,
+  signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 import {
@@ -23,6 +24,12 @@ const db = getFirestore(app);
 
 const receivedRequestsList = document.getElementById("receivedRequestsList");
 const sentRequestsList = document.getElementById("sentRequestsList");
+const profileBtn = document.getElementById("profileBtn");
+const coursesBtn = document.getElementById("coursesBtn");
+const partnersBtn = document.getElementById("partnersBtn");
+const requestsBtn = document.getElementById("requestsBtn");
+const chatBtn = document.getElementById("chatBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
 let currentUser = null;
 
@@ -56,7 +63,7 @@ function createReceivedCard(requestId, sender, senderId) {
   card.innerHTML = `
     <div class="request-header">
       <img
-        src="${sender.photoURL || "user-placeholder.jpg"}"
+        src="${sender.photoURL || "../user-placeholder.jpg"}"
         class="request-photo"
       />
 
@@ -76,6 +83,7 @@ function createReceivedCard(requestId, sender, senderId) {
     await updateDoc(doc(db, "partnerRequests", requestId), {
       status: "accepted",
       acceptedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
 
     const chatId = createChatId(currentUser.uid, senderId);
@@ -110,6 +118,7 @@ function createReceivedCard(requestId, sender, senderId) {
     await updateDoc(doc(db, "partnerRequests", requestId), {
       status: "rejected",
       rejectedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
 
     alert("Anfrage abgelehnt.");
@@ -126,7 +135,7 @@ function createSentCard(receiver, status) {
   card.innerHTML = `
     <div class="request-header">
       <img
-        src="${receiver.photoURL || "user-placeholder.jpg"}"
+        src="${receiver.photoURL || "../user-placeholder.jpg"}"
         class="request-photo"
       />
 
@@ -204,6 +213,48 @@ async function loadRequests() {
     sentRequestsList.innerHTML =
       '<p class="empty-message">Keine gesendeten Anfragen.</p>';
   }
+}
+
+if (profileBtn) {
+  profileBtn.addEventListener("click", () => {
+    window.location.href = "../Profile/profile.html";
+  });
+}
+
+if (coursesBtn) {
+  coursesBtn.addEventListener("click", () => {
+    window.location.href = "../Courses/courses.html";
+  });
+}
+
+if (partnersBtn) {
+  partnersBtn.addEventListener("click", () => {
+    window.location.href = "../Partners/partners.html";
+  });
+}
+
+if (requestsBtn) {
+  requestsBtn.addEventListener("click", () => {
+    window.location.href = "../Partners/requests.html";
+  });
+}
+
+if (chatBtn) {
+  chatBtn.addEventListener("click", () => {
+    window.location.href = "../Chat/chat.html";
+  });
+}
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    try {
+      await signOut(auth);
+      window.location.href = "../Login/login.html";
+    } catch (error) {
+      console.error(error);
+      alert("Abmeldung fehlgeschlagen.");
+    }
+  });
 }
 
 onAuthStateChanged(auth, async (user) => {

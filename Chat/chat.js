@@ -61,11 +61,15 @@ const profileName = document.getElementById("profileName");
 const profileFaculty = document.getElementById("profileFaculty");
 const profileFachbereich = document.getElementById("profileFachbereich");
 const profileSemester = document.getElementById("profileSemester");
+const profileNationality = document.getElementById("profileNationality");
 const profileLastSeen = document.getElementById("profileLastSeen");
 
-const logoutBtn = document.getElementById("logoutBtn");
+const profileBtn = document.getElementById("profileBtn");
+const coursesBtn = document.getElementById("coursesBtn");
 const partnersBtn = document.getElementById("partnersBtn");
 const requestsBtn = document.getElementById("requestsBtn");
+const chatBtn = document.getElementById("chatBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
 const photoModal = document.getElementById("photoModal");
 const photoModalImage = document.getElementById("photoModalImage");
@@ -208,11 +212,12 @@ function renderEmptyChat() {
   messagesList.innerHTML =
     '<p class="empty-message">Wähle einen Kontakt aus.</p>';
 
-  profilePhoto.src = "user-placeholder.jpg";
+  profilePhoto.src = "../user-placeholder.jpg";
   profileName.textContent = "-";
   profileFaculty.textContent = "-";
   profileFachbereich.textContent = "-";
   profileSemester.textContent = "-";
+  profileNationality.textContent = "-";
   profileLastSeen.textContent = "-";
 }
 
@@ -223,7 +228,7 @@ async function getUserData(uid) {
     return {
       id: uid,
       fullname: "Unbekannter Nutzer",
-      photoURL: "user-placeholder.jpg",
+      photoURL: "../user-placeholder.jpg",
       faculty: "-",
       fachbereich: "-",
       semester: "-",
@@ -286,7 +291,7 @@ function renderContacts(list = chats) {
       <div class="contact-avatar-wrapper">
         <img
           class="contact-avatar"
-          src="${escapeHTML(partner.photoURL || "user-placeholder.jpg")}"
+          src="${escapeHTML(partner.photoURL || "../user-placeholder.jpg")}"
           alt="Profilbild von ${escapeHTML(partner.fullname || "Kontakt")}"
         />
 
@@ -310,7 +315,7 @@ function renderContacts(list = chats) {
       event.stopPropagation();
 
       openPhotoModal(
-        partner.photoURL || "user-placeholder.jpg",
+        partner.photoURL || "../user-placeholder.jpg",
         partner.fullname || "Kontakt",
       );
     });
@@ -341,7 +346,7 @@ function renderChatHeader(partner) {
 }
 
 function openPhotoModal(photoURL, name) {
-  photoModalImage.src = photoURL || "user-placeholder.jpg";
+  photoModalImage.src = photoURL || "../user-placeholder.jpg";
   photoModalName.textContent = name || "Profilbild";
 
   photoModal.classList.add("open");
@@ -366,11 +371,12 @@ document.addEventListener("keydown", (event) => {
 });
 
 function renderProfilePanel(partner) {
-  profilePhoto.src = partner.photoURL || "user-placeholder.jpg";
+  profilePhoto.src = partner.photoURL || "../user-placeholder.jpg";
   profileName.textContent = partner.fullname || "Kontakt";
   profileFaculty.textContent = partner.faculty || "-";
   profileFachbereich.textContent = partner.fachbereich || "-";
   profileSemester.textContent = partner.semester || "-";
+  profileNationality.textContent = partner.nationality || "-";
 
   profileLastSeen.textContent = partner.online
     ? "Jetzt online"
@@ -378,8 +384,8 @@ function renderProfilePanel(partner) {
 
   profilePhoto.onclick = () => {
     openPhotoModal(
-      partner.photoURL || "user-placeholder.jpg",
-      partner.fullname || "Kontakt",
+      partner.photoURL || "../user-placeholder.jpg",
+      partner.fullname || "Kontakt"
     );
   };
 }
@@ -737,13 +743,35 @@ logoutBtn.addEventListener("click", async () => {
   window.location.href = "../Login/login.html";
 });
 
-partnersBtn.addEventListener("click", () => {
-  window.location.href = "../Partners/partners.html";
-});
+if (profileBtn) {
+  profileBtn.addEventListener("click", () => {
+    window.location.href = "../Profile/profile.html";
+  });
+}
 
-requestsBtn.addEventListener("click", () => {
-  window.location.href = "../Partners/requests.html";
-});
+if (coursesBtn) {
+  coursesBtn.addEventListener("click", () => {
+    window.location.href = "../Courses/courses.html";
+  });
+}
+
+if (partnersBtn) {
+  partnersBtn.addEventListener("click", () => {
+    window.location.href = "../Partners/partners.html";
+  });
+}
+
+if (requestsBtn) {
+  requestsBtn.addEventListener("click", () => {
+    window.location.href = "../Partners/requests.html";
+  });
+}
+
+if (chatBtn) {
+  chatBtn.addEventListener("click", () => {
+    window.location.href = "../Chat/chat.html";
+  });
+}
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {

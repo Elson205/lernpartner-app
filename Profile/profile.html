@@ -1,4 +1,5 @@
 <!doctype html>
+
 <html lang="de">
   <head>
     <link
@@ -18,19 +19,37 @@
     <header>
       <div class="logo">BUW</div>
 
-      <div class="header-actions">
-        <button type="button" id="coursesBtn" class="header-btn">
-          Meine Kurse
+      <nav class="top-nav">
+        <button type="button" id="profileBtn" class="nav-btn active">
+          <span class="nav-icon">👤</span>
+          <span class="nav-text">Profil</span>
         </button>
 
-        <button type="button" id="partnersBtn" class="header-btn">
-          Lernpartner finden
+        <button type="button" id="coursesBtn" class="nav-btn">
+          <span class="nav-icon">📚</span>
+          <span class="nav-text">Kurse</span>
         </button>
 
-        <button type="button" id="logoutBtn" class="login-btn">
-          Abmelden
+        <button type="button" id="partnersBtn" class="nav-btn">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Partner</span>
         </button>
-      </div>
+
+        <button type="button" id="requestsBtn" class="nav-btn">
+          <span class="nav-icon">🤝</span>
+          <span class="nav-text">Anfragen</span>
+        </button>
+
+        <button type="button" id="chatBtn" class="nav-btn">
+          <span class="nav-icon">💬</span>
+          <span class="nav-text">Chat</span>
+        </button>
+
+        <button type="button" id="logoutBtn" class="nav-btn logout">
+          <span class="nav-icon">🚪</span>
+          <span class="nav-text">Abmelden</span>
+        </button>
+      </nav>
     </header>
 
     <main class="profile-page">
@@ -38,24 +57,23 @@
         <h1>Profil vervollständigen</h1>
 
         <p class="intro-text">
-          Ergänze dein Profil, damit andere Studierende dich besser finden können.
+          Ergänze dein Profil, damit andere Studierende dich besser finden
+          können.
         </p>
 
         <form id="profileForm">
           <div class="top-profile-section">
             <div class="profile-picture">
-              <label for="uploadPhoto" class="photo-label">
-                Profile Picture
-              </label>
+              <label for="uploadPhoto" class="photo-label"> Profilbild </label>
 
               <img
                 id="profilePreview"
-                src="user-placeholder.jpg"
-                alt="Profile Picture"
+                src="../user-placeholder.jpg"
+                alt="Profilbild"
               />
 
               <label for="uploadPhoto" class="custom-upload">
-                Upload Photo
+                Foto hochladen
               </label>
 
               <input type="file" id="uploadPhoto" accept="image/*" />
@@ -66,10 +84,10 @@
             </div>
 
             <div class="user-info">
-              <label for="fullname">Full Name</label>
+              <label for="fullname">Vollständiger Name</label>
               <input type="text" id="fullname" disabled />
 
-              <label for="email">University Email</label>
+              <label for="email">Uni-E-Mail</label>
               <input type="email" id="email" disabled />
             </div>
           </div>
@@ -77,33 +95,42 @@
           <label for="faculty">Faculty</label>
           <select id="faculty" name="faculty">
             <option value="">Bitte Fakultät auswählen</option>
+
             <option value="Geistes- und Kulturwissenschaften">
               Geistes- und Kulturwissenschaften
             </option>
+
             <option value="Human- und Sozialwissenschaften">
               Human- und Sozialwissenschaften
             </option>
+
             <option
               value="Wirtschaftswissenschaft - Schumpeter School of Business and Economics"
             >
               Wirtschaftswissenschaft - Schumpeter School of Business and
               Economics
             </option>
+
             <option value="Mathematik und Naturwissenschaften">
               Mathematik und Naturwissenschaften
             </option>
+
             <option value="Architektur und Bauingenieurwesen">
               Architektur und Bauingenieurwesen
             </option>
+
             <option
               value="Elektrotechnik, Informationstechnik und Medientechnik"
             >
               Elektrotechnik, Informationstechnik und Medientechnik
             </option>
+
             <option value="Maschinenbau und Sicherheitstechnik">
               Maschinenbau und Sicherheitstechnik
             </option>
+
             <option value="Design und Kunst">Design und Kunst</option>
+
             <option value="School of Education">School of Education</option>
           </select>
 
@@ -124,6 +151,25 @@
             <option value="7 oder mehr">7. Semester oder höher</option>
           </select>
 
+          <label for="nationalityInput">Nationalität</label>
+
+          <div class="autocomplete">
+            <input
+              type="text"
+              id="nationalityInput"
+              name="nationality"
+              placeholder="Land suchen, z.B. Kamerun"
+              autocomplete="off"
+            />
+
+            <div id="countrySuggestions" class="autocomplete-list"></div>
+          </div>
+
+          <small class="optional-info">
+            Optional: Hilft internationalen Studierenden, passende Lernpartner
+            zu finden.
+          </small>
+
           <label for="editor">Über mich</label>
           <div id="editor"></div>
 
@@ -143,14 +189,13 @@
           <li id="check-faculty">➖ Fakultät eintragen</li>
           <li id="check-fachbereich">➖ Fachbereich eintragen</li>
           <li id="check-semester">➖ Semester hinzufügen</li>
+          <li id="check-nationality">➖ Nationalität optional</li>
           <li id="check-about">➖ Beschreibung hinzufügen</li>
         </ul>
 
         <div class="next-step-box">
           <strong>Nächster Schritt:</strong>
-          <p>
-            Nach dem Speichern kannst du deine Kurse hinzufügen.
-          </p>
+          <p>Nach dem Speichern kannst du deine Kurse hinzufügen.</p>
         </div>
       </aside>
     </main>
@@ -161,12 +206,12 @@
           ×
         </button>
 
-        <h2>Profile Picture</h2>
+        <h2>Profilbild</h2>
 
         <img
           id="photoModalImage"
-          src="user-placeholder.jpg"
-          alt="Profile Picture groß"
+          src="../user-placeholder.jpg"
+          alt="Profilbild groß"
           class="photo-modal-image"
         />
       </div>

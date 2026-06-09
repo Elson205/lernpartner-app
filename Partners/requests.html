@@ -1,43 +1,77 @@
 <!DOCTYPE html>
 <html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Partneranfragen - BUW</title>
-  <link rel="stylesheet" href="requests.css">
-</head>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<body>
+    <title>Partneranfragen - BUW</title>
 
-<header>
-  <div class="logo">BUW</div>
+    <link rel="stylesheet" href="requests.css" />
+  </head>
 
-  <div class="header-actions">
-    <button onclick="window.location.href='partners.html'" class="back-btn">
-      ← Zurück
-    </button>
-  </div>
-</header>
+  <body>
+    <header>
+      <div class="logo">BUW</div>
 
-<main class="requests-page">
+      <nav class="top-nav">
+        <button type="button" id="profileBtn" class="nav-btn">
+          <span class="nav-icon">👤</span>
+          <span class="nav-text">Profil</span>
+        </button>
 
-  <section class="requests-section">
-    <h1>Erhaltene Anfragen</h1>
-    <div id="receivedRequestsList" class="requests-list">
-      <p class="empty-message">Keine erhaltenen Anfragen.</p>
-    </div>
-  </section>
+        <button type="button" id="coursesBtn" class="nav-btn">
+          <span class="nav-icon">📚</span>
+          <span class="nav-text">Kurse</span>
+        </button>
 
-  <section class="requests-section">
-    <h1>Gesendete Anfragen</h1>
-    <div id="sentRequestsList" class="requests-list">
-      <p class="empty-message">Keine gesendeten Anfragen.</p>
-    </div>
-  </section>
+        <button type="button" id="partnersBtn" class="nav-btn">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Partner</span>
+        </button>
 
-</main>
+        <button type="button" id="requestsBtn" class="nav-btn active">
+          <span class="nav-icon">🤝</span>
+          <span class="nav-text">Anfragen</span>
+        </button>
 
-<script type="module" src="requests.js"></script>
+        <button type="button" id="chatBtn" class="nav-btn">
+          <span class="nav-icon">💬</span>
+          <span class="nav-text">Chat</span>
+        </button>
 
-</body>
+        <button type="button" id="logoutBtn" class="nav-btn logout">
+          <span class="nav-icon">🚪</span>
+          <span class="nav-text">Abmelden</span>
+        </button>
+      </nav>
+    </header>
+
+    <main class="requests-page">
+      <section class="requests-section">
+        <h1>Partneranfragen</h1>
+
+        <p class="intro-text">
+          Hier kannst du erhaltene Anfragen annehmen oder ablehnen und deine gesendeten Anfragen verfolgen.
+        </p>
+      </section>
+
+      <section class="requests-section">
+        <h2>Erhaltene Anfragen</h2>
+
+        <div id="receivedRequestsList" class="requests-list">
+          <p class="empty-message">Keine erhaltenen Anfragen.</p>
+        </div>
+      </section>
+
+      <section class="requests-section">
+        <h2>Gesendete Anfragen</h2>
+
+        <div id="sentRequestsList" class="requests-list">
+          <p class="empty-message">Keine gesendeten Anfragen.</p>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="requests.js"></script>
+  </body>
 </html>

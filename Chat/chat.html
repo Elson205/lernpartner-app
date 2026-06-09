@@ -13,11 +13,37 @@
     <header>
       <div class="logo">BUW</div>
 
-      <div class="header-actions">
-        <button id="partnersBtn" class="header-btn">Partner finden</button>
-        <button id="requestsBtn" class="header-btn">Anfragen</button>
-        <button id="logoutBtn" class="login-btn">Abmelden</button>
-      </div>
+      <nav class="top-nav">
+        <button type="button" id="profileBtn" class="nav-btn">
+          <span class="nav-icon">👤</span>
+          <span class="nav-text">Profil</span>
+        </button>
+
+        <button type="button" id="coursesBtn" class="nav-btn">
+          <span class="nav-icon">📚</span>
+          <span class="nav-text">Kurse</span>
+        </button>
+
+        <button type="button" id="partnersBtn" class="nav-btn">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Partner</span>
+        </button>
+
+        <button type="button" id="requestsBtn" class="nav-btn">
+          <span class="nav-icon">🤝</span>
+          <span class="nav-text">Anfragen</span>
+        </button>
+
+        <button type="button" id="chatBtn" class="nav-btn active">
+          <span class="nav-icon">💬</span>
+          <span class="nav-text">Chat</span>
+        </button>
+
+        <button type="button" id="logoutBtn" class="nav-btn logout">
+          <span class="nav-icon">🚪</span>
+          <span class="nav-text">Abmelden</span>
+        </button>
+      </nav>
     </header>
 
     <main class="chat-page" id="chatPage">
@@ -88,7 +114,7 @@
         <img
           id="profilePhoto"
           class="profile-photo"
-          src="user-placeholder.jpg"
+          src="../user-placeholder.jpg"
           alt="Profilbild"
         />
 
@@ -96,12 +122,22 @@
 
         <div class="profile-info">
           <p><strong>Fakultät:</strong> <span id="profileFaculty">-</span></p>
+
           <p>
-            <strong>Fachbereich:</strong> <span id="profileFachbereich">-</span>
+            <strong>Fachbereich:</strong>
+            <span id="profileFachbereich">-</span>
           </p>
+
           <p><strong>Semester:</strong> <span id="profileSemester">-</span></p>
+
           <p>
-            <strong>Zuletzt online:</strong> <span id="profileLastSeen">-</span>
+            <strong>Nationalität:</strong>
+            <span id="profileNationality">-</span>
+          </p>
+
+          <p>
+            <strong>Zuletzt online:</strong>
+            <span id="profileLastSeen">-</span>
           </p>
         </div>
 
@@ -109,6 +145,7 @@
 
         <div class="request-status-box">
           <h3>Status:</h3>
+
           <div id="requestStatus" class="request-status confirmed">
             Lernpartnerschaft bestätigt
           </div>
@@ -116,7 +153,6 @@
       </aside>
     </main>
 
-    <!-- MODAL PHOTO DE PROFIL -->
     <div id="photoModal" class="photo-modal">
       <div class="photo-modal-content">
         <button id="closePhotoModal" class="close-photo-modal">×</button>
@@ -125,7 +161,7 @@
 
         <img
           id="photoModalImage"
-          src="user-placeholder.jpg"
+          src="../user-placeholder.jpg"
           alt="Profilbild groß"
           class="photo-modal-image"
         />

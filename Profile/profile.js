@@ -25,7 +25,13 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
+// Firebase Storage est temporairement désactivé.
+// Plus tard, après le passage à Blaze, il suffira de mettre true.
 const STORAGE_ENABLED = false;
+
+/* =========================
+   ELEMENTS HTML
+========================= */
 
 const form = document.getElementById("profileForm");
 const submitBtn = document.getElementById("submitBtn");
@@ -43,13 +49,82 @@ const facultyInput = document.getElementById("faculty");
 const fachbereichInput = document.getElementById("fachbereich");
 const semesterInput = document.getElementById("semester");
 
+const nationalityInput = document.getElementById("nationalityInput");
+const countrySuggestions = document.getElementById("countrySuggestions");
+
+/* =========================
+   NAVIGATION
+========================= */
+
+const profileBtn = document.getElementById("profileBtn");
 const coursesBtn = document.getElementById("coursesBtn");
 const partnersBtn = document.getElementById("partnersBtn");
+const requestsBtn = document.getElementById("requestsBtn");
+const chatBtn = document.getElementById("chatBtn");
 const logoutBtn = document.getElementById("logoutBtn");
+
+/* =========================
+   VARIABLES GLOBALES
+========================= */
 
 let currentUser = null;
 let currentUserData = null;
 let selectedPhotoFile = null;
+
+/* =========================
+   LISTE DES PAYS
+   Plus tard, on pourra remplacer ça par Data/countries.json
+========================= */
+
+const countries = [
+  "Afghanistan",
+  "Ägypten",
+  "Albanien",
+  "Algerien",
+  "Angola",
+  "Argentinien",
+  "Belgien",
+  "Brasilien",
+  "Bulgarien",
+  "Burkina Faso",
+  "Kamerun",
+  "Kanada",
+  "China",
+  "Deutschland",
+  "Elfenbeinküste",
+  "Frankreich",
+  "Ghana",
+  "Indien",
+  "Indonesien",
+  "Iran",
+  "Italien",
+  "Japan",
+  "Kenia",
+  "Kongo",
+  "Marokko",
+  "Mexiko",
+  "Nigeria",
+  "Niederlande",
+  "Österreich",
+  "Polen",
+  "Portugal",
+  "Rumänien",
+  "Russland",
+  "Schweiz",
+  "Senegal",
+  "Spanien",
+  "Syrien",
+  "Tunesien",
+  "Türkei",
+  "Ukraine",
+  "USA",
+  "Vietnam",
+  "Andere",
+];
+
+/* =========================
+   QUILL EDITOR
+========================= */
 
 const quill = new Quill("#editor", {
   theme: "snow",
@@ -65,23 +140,90 @@ const quill = new Quill("#editor", {
   },
 });
 
+/* =========================
+   HELPERS
+========================= */
+
+function normalizeText(text = "") {
+  return String(text)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 function setValid(id, message) {
   const element = document.getElementById(id);
+
+  if (!element) return;
+
   element.innerHTML = message;
   element.className = "valid";
 }
 
 function setInvalid(id, message) {
   const element = document.getElementById(id);
+
+  if (!element) return;
+
   element.innerHTML = message;
   element.className = "invalid";
 }
 
 function setNeutral(id, message) {
   const element = document.getElementById(id);
+
+  if (!element) return;
+
   element.innerHTML = message;
   element.className = "neutral";
 }
+
+/* =========================
+   AUTOCOMPLETE NATIONALITÄT
+========================= */
+
+function renderCountrySuggestions(searchValue) {
+  if (!countrySuggestions || !nationalityInput) return;
+
+  countrySuggestions.innerHTML = "";
+
+  const query = normalizeText(searchValue.trim());
+
+  if (!query) {
+    countrySuggestions.classList.remove("open");
+    return;
+  }
+
+  const filteredCountries = countries.filter((country) =>
+    normalizeText(country).startsWith(query)
+  );
+
+  if (filteredCountries.length === 0) {
+    countrySuggestions.classList.remove("open");
+    return;
+  }
+
+  filteredCountries.forEach((country) => {
+    const item = document.createElement("div");
+
+    item.className = "autocomplete-item";
+    item.textContent = country;
+
+    item.addEventListener("click", () => {
+      nationalityInput.value = country;
+      countrySuggestions.classList.remove("open");
+      checkProfileValid();
+    });
+
+    countrySuggestions.appendChild(item);
+  });
+
+  countrySuggestions.classList.add("open");
+}
+
+/* =========================
+   VALIDATION PROFIL
+========================= */
 
 function checkProfileValid() {
   const fullname = fullnameInput.value.trim();
@@ -89,6 +231,7 @@ function checkProfileValid() {
   const faculty = facultyInput.value.trim();
   const fachbereich = fachbereichInput.value.trim();
   const semester = semesterInput.value.trim();
+  const nationality = nationalityInput ? nationalityInput.value.trim() : "";
   const about = quill.getText().trim();
 
   const fullnameValid = fullname !== "";
@@ -98,7 +241,11 @@ function checkProfileValid() {
   const semesterValid = semester !== "";
   const aboutValid = about !== "";
 
-  if (selectedPhotoFile || profilePreview.src.includes("user-placeholder.jpg") === false) {
+  const hasRealPhoto =
+    selectedPhotoFile ||
+    !profilePreview.src.includes("user-placeholder.jpg");
+
+  if (hasRealPhoto) {
     setValid("check-photo", "✅ Profilbild ausgewählt");
   } else {
     setNeutral("check-photo", "➖ Profilbild optional");
@@ -134,34 +281,38 @@ function checkProfileValid() {
     setInvalid("check-semester", "❌ Semester fehlt");
   }
 
+  if (nationality) {
+    setValid("check-nationality", "✅ Nationalität hinzugefügt");
+  } else {
+    setNeutral("check-nationality", "➖ Nationalität optional");
+  }
+
   if (aboutValid) {
     setValid("check-about", "✅ Beschreibung hinzugefügt");
   } else {
     setInvalid("check-about", "❌ Beschreibung fehlt");
   }
 
-  submitBtn.disabled = !(
+  const profileIsValid =
     fullnameValid &&
     emailValid &&
     facultyValid &&
     fachbereichValid &&
     semesterValid &&
-    aboutValid
-  );
+    aboutValid;
 
-  return (
-    fullnameValid &&
-    emailValid &&
-    facultyValid &&
-    fachbereichValid &&
-    semesterValid &&
-    aboutValid
-  );
+  submitBtn.disabled = !profileIsValid;
+
+  return profileIsValid;
 }
+
+/* =========================
+   UPLOAD PHOTO
+========================= */
 
 async function uploadProfilePhoto(uid, file) {
   if (!file) {
-    return currentUserData?.photoURL || "user-placeholder.jpg";
+    return currentUserData?.photoURL || "../user-placeholder.jpg";
   }
 
   if (!file.type.startsWith("image/")) {
@@ -182,6 +333,10 @@ async function uploadProfilePhoto(uid, file) {
   return getDownloadURL(photoRef);
 }
 
+/* =========================
+   PROFIL LADEN
+========================= */
+
 async function loadUserProfile() {
   const userRef = doc(db, "users", currentUser.uid);
   const userSnap = await getDoc(userRef);
@@ -201,7 +356,11 @@ async function loadUserProfile() {
   fachbereichInput.value = currentUserData.fachbereich || "";
   semesterInput.value = currentUserData.semester || "";
 
-  profilePreview.src = currentUserData.photoURL || "user-placeholder.jpg";
+  if (nationalityInput) {
+    nationalityInput.value = currentUserData.nationality || "";
+  }
+
+  profilePreview.src = currentUserData.photoURL || "../user-placeholder.jpg";
 
   if (currentUserData.aboutHTML) {
     quill.root.innerHTML = currentUserData.aboutHTML;
@@ -211,6 +370,10 @@ async function loadUserProfile() {
 
   checkProfileValid();
 }
+
+/* =========================
+   PHOTO PREVIEW
+========================= */
 
 uploadPhoto.addEventListener("change", function () {
   const file = this.files[0];
@@ -226,6 +389,10 @@ uploadPhoto.addEventListener("change", function () {
 
   checkProfileValid();
 });
+
+/* =========================
+   MODAL PHOTO
+========================= */
 
 function openPhotoModal() {
   photoModalImage.src = profilePreview.src;
@@ -252,6 +419,10 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+/* =========================
+   PROFIL SPEICHERN
+========================= */
+
 form.addEventListener("submit", async function (event) {
   event.preventDefault();
 
@@ -265,6 +436,7 @@ form.addEventListener("submit", async function (event) {
   const faculty = facultyInput.value.trim();
   const fachbereich = fachbereichInput.value.trim();
   const semester = semesterInput.value.trim();
+  const nationality = nationalityInput ? nationalityInput.value.trim() : "";
 
   const aboutText = quill.getText().trim();
   const aboutHTML = quill.root.innerHTML;
@@ -273,7 +445,7 @@ form.addEventListener("submit", async function (event) {
     submitBtn.disabled = true;
     submitBtn.textContent = "Profil wird gespeichert...";
 
-    let photoURL = currentUserData?.photoURL || "user-placeholder.jpg";
+    let photoURL = currentUserData?.photoURL || "../user-placeholder.jpg";
 
     if (selectedPhotoFile && STORAGE_ENABLED) {
       photoURL = await uploadProfilePhoto(currentUser.uid, selectedPhotoFile);
@@ -285,11 +457,12 @@ form.addEventListener("submit", async function (event) {
       faculty,
       fachbereich,
       semester,
+      nationality,
 
       aboutText,
       aboutHTML,
 
-      profileCompleted: true,
+      profileCompleted: isValid,
 
       updatedAt: serverTimestamp(),
     });
@@ -306,23 +479,78 @@ form.addEventListener("submit", async function (event) {
   }
 });
 
+/* =========================
+   EVENTS VALIDATION
+========================= */
+
 facultyInput.addEventListener("input", checkProfileValid);
 fachbereichInput.addEventListener("input", checkProfileValid);
 semesterInput.addEventListener("input", checkProfileValid);
+
+if (nationalityInput) {
+  nationalityInput.addEventListener("input", () => {
+    renderCountrySuggestions(nationalityInput.value);
+    checkProfileValid();
+  });
+}
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".autocomplete") && countrySuggestions) {
+    countrySuggestions.classList.remove("open");
+  }
+});
+
 quill.on("text-change", checkProfileValid);
 
-coursesBtn.addEventListener("click", () => {
-  window.location.href = "../Courses/courses.html";
-});
+/* =========================
+   EVENTS NAVIGATION
+========================= */
 
-partnersBtn.addEventListener("click", () => {
-  window.location.href = "../Partners/partners.html";
-});
+if (profileBtn) {
+  profileBtn.addEventListener("click", () => {
+    window.location.href = "../Profile/profile.html";
+  });
+}
 
-logoutBtn.addEventListener("click", async () => {
-  await signOut(auth);
-  window.location.href = "../Login/login.html";
-});
+if (coursesBtn) {
+  coursesBtn.addEventListener("click", () => {
+    window.location.href = "../Courses/courses.html";
+  });
+}
+
+if (partnersBtn) {
+  partnersBtn.addEventListener("click", () => {
+    window.location.href = "../Partners/partners.html";
+  });
+}
+
+if (requestsBtn) {
+  requestsBtn.addEventListener("click", () => {
+    window.location.href = "../Partners/requests.html";
+  });
+}
+
+if (chatBtn) {
+  chatBtn.addEventListener("click", () => {
+    window.location.href = "../Chat/chat.html";
+  });
+}
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    try {
+      await signOut(auth);
+      window.location.href = "../Login/login.html";
+    } catch (error) {
+      console.error(error);
+      alert("Abmeldung fehlgeschlagen.");
+    }
+  });
+}
+
+/* =========================
+   AUTH INIT
+========================= */
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {

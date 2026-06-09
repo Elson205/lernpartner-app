@@ -1,18 +1,29 @@
 body {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", Arial, sans-serif;
   background-color: #f7f9fc;
   color: #222;
   margin: 0;
+  line-height: 1.5;
 }
 
+/* =========================
+   HEADER
+========================= */
 header {
   background-color: #0b2850;
   color: white;
+
   display: flex;
   justify-content: space-between;
   align-items: center;
+
   padding: 0.8rem 2rem;
+
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .logo {
@@ -20,41 +31,73 @@ header {
   font-weight: 700;
 }
 
-.header-actions {
+/* =========================
+   NAVIGATION
+========================= */
+.top-nav {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
-.login-text {
-  font-size: 0.9rem;
-}
+.nav-btn {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
 
-.login-btn {
-  background-color: gray;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+
+  padding: 0.55rem 0.8rem;
+  border-radius: 10px;
+
   cursor: pointer;
-  font-weight: bold;
-    transition:
+
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  font-weight: 600;
+  font-size: 0.9rem;
+
+  transition:
     background 0.3s,
-    transform 0.2s;
+    transform 0.2s,
+    border 0.3s;
 }
 
-.login-btn:hover {
-
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
   transform: translateY(-2px);
-
-  background: #8c8c8c;
 }
 
+.nav-btn.active {
+  background: white;
+  color: #0b2850;
+}
 
+.nav-btn.logout {
+  background: #9ca3af;
+}
+
+.nav-btn.logout:hover {
+  background: #ef4444;
+}
+
+.nav-icon {
+  font-size: 1.05rem;
+}
+
+.nav-text {
+  white-space: nowrap;
+}
+
+/* =========================
+   PAGE
+========================= */
 .partners-page {
   max-width: 1100px;
   margin: 2rem auto;
   background: white;
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 2rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
 }
@@ -62,9 +105,18 @@ header {
 .search-section h1 {
   color: #0b2850;
   margin-top: 0;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
+.intro-text {
+  color: #6b7280;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+/* =========================
+   SEARCH
+========================= */
 .partner-search-form {
   display: flex;
   gap: 0.8rem;
@@ -73,10 +125,15 @@ header {
 
 .partner-search-form input {
   flex: 1;
-  padding: 0.7rem;
+  padding: 0.75rem;
   border-radius: 8px;
   border: 1px solid #ccc;
   font-size: 1rem;
+  box-sizing: border-box;
+
+  transition:
+    border 0.3s,
+    box-shadow 0.3s;
 }
 
 .partner-search-form input:focus {
@@ -88,13 +145,29 @@ header {
 .search-btn {
   background: #0b2850;
   color: white;
+
   border: none;
+
   padding: 0 1.3rem;
   border-radius: 8px;
+
   cursor: pointer;
-  font-weight: 600;
+
+  font-weight: 700;
+
+  transition:
+    background 0.3s,
+    transform 0.2s;
 }
 
+.search-btn:hover {
+  background: #163b70;
+  transform: translateY(-2px);
+}
+
+/* =========================
+   RESULTS LAYOUT
+========================= */
 .results-layout {
   display: grid;
   grid-template-columns: 1fr 260px;
@@ -108,16 +181,31 @@ header {
   gap: 1rem;
 }
 
-/* Carte profil */
+/* =========================
+   PARTNER CARD
+========================= */
 .partner-card {
   background: white;
   border: 1px solid #d5dce5;
   border-radius: 10px;
+
   padding: 1rem;
+
   min-height: 245px;
+
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+
   display: flex;
   flex-direction: column;
+
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.partner-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
 }
 
 .partner-header {
@@ -130,9 +218,13 @@ header {
 .partner-photo {
   width: 64px;
   height: 64px;
+
   border-radius: 50%;
+
   object-fit: cover;
+
   background: #e5e7eb;
+
   flex-shrink: 0;
 }
 
@@ -162,6 +254,7 @@ header {
 .partner-about {
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -176,10 +269,23 @@ header {
 .request-btn {
   border: none;
   border-radius: 7px;
+
   padding: 0.45rem 0.6rem;
+
   font-size: 0.8rem;
+
   cursor: pointer;
+
   font-weight: 600;
+
+  transition:
+    background 0.3s,
+    transform 0.2s;
+}
+
+.profile-btn:hover,
+.request-btn:hover {
+  transform: translateY(-2px);
 }
 
 .profile-btn {
@@ -193,12 +299,24 @@ header {
   color: white;
 }
 
+.request-btn:hover {
+  background: #163b70;
+}
+
+/* =========================
+   SUGGESTIONS
+========================= */
 .suggestions-box {
   background: #f8fafc;
   border: 1px solid #d5dce5;
   border-radius: 10px;
+
   padding: 1rem;
+
   min-height: 260px;
+
+  position: sticky;
+  top: 6rem;
 }
 
 .suggestions-box h3 {
@@ -218,12 +336,30 @@ header {
 }
 
 .empty-message {
-  color: #666;
+  color: #6b7280;
   font-style: italic;
 }
 
-/* Responsive */
-@media (max-width: 950px) {
+/* =========================
+   RESPONSIVE
+========================= */
+@media (max-width: 1050px) {
+  header {
+    padding: 0.8rem 1rem;
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .top-nav {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .nav-btn {
+    padding: 0.5rem 0.7rem;
+  }
+
   .results-layout {
     grid-template-columns: 1fr;
   }
@@ -233,6 +369,7 @@ header {
   }
 
   .suggestions-box {
+    position: static;
     order: -1;
   }
 }
@@ -253,5 +390,21 @@ header {
 
   .partners-list {
     grid-template-columns: 1fr;
+  }
+
+  .nav-text {
+    display: none;
+  }
+
+  .nav-btn {
+    width: 42px;
+    height: 42px;
+    justify-content: center;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .nav-icon {
+    font-size: 1.15rem;
   }
 }
