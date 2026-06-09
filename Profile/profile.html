@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <link
+      href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css"
+      rel="stylesheet"
+    />
+
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Mein Profil - BUW</title>
+
+    <link rel="stylesheet" href="profile.css" />
+  </head>
+
+  <body>
+    <header>
+      <div class="logo">BUW</div>
+
+      <div class="header-actions">
+        <button type="button" id="coursesBtn" class="header-btn">
+          Meine Kurse
+        </button>
+
+        <button type="button" id="partnersBtn" class="header-btn">
+          Lernpartner finden
+        </button>
+
+        <button type="button" id="logoutBtn" class="login-btn">
+          Abmelden
+        </button>
+      </div>
+    </header>
+
+    <main class="profile-page">
+      <section class="form-section">
+        <h1>Profil vervollständigen</h1>
+
+        <p class="intro-text">
+          Ergänze dein Profil, damit andere Studierende dich besser finden können.
+        </p>
+
+        <form id="profileForm">
+          <div class="top-profile-section">
+            <div class="profile-picture">
+              <label for="uploadPhoto" class="photo-label">
+                Profile Picture
+              </label>
+
+              <img
+                id="profilePreview"
+                src="user-placeholder.jpg"
+                alt="Profile Picture"
+              />
+
+              <label for="uploadPhoto" class="custom-upload">
+                Upload Photo
+              </label>
+
+              <input type="file" id="uploadPhoto" accept="image/*" />
+
+              <small class="storage-note">
+                Upload wird später mit Firebase Storage aktiviert.
+              </small>
+            </div>
+
+            <div class="user-info">
+              <label for="fullname">Full Name</label>
+              <input type="text" id="fullname" disabled />
+
+              <label for="email">University Email</label>
+              <input type="email" id="email" disabled />
+            </div>
+          </div>
+
+          <label for="faculty">Faculty</label>
+          <select id="faculty" name="faculty">
+            <option value="">Bitte Fakultät auswählen</option>
+            <option value="Geistes- und Kulturwissenschaften">
+              Geistes- und Kulturwissenschaften
+            </option>
+            <option value="Human- und Sozialwissenschaften">
+              Human- und Sozialwissenschaften
+            </option>
+            <option
+              value="Wirtschaftswissenschaft - Schumpeter School of Business and Economics"
+            >
+              Wirtschaftswissenschaft - Schumpeter School of Business and
+              Economics
+            </option>
+            <option value="Mathematik und Naturwissenschaften">
+              Mathematik und Naturwissenschaften
+            </option>
+            <option value="Architektur und Bauingenieurwesen">
+              Architektur und Bauingenieurwesen
+            </option>
+            <option
+              value="Elektrotechnik, Informationstechnik und Medientechnik"
+            >
+              Elektrotechnik, Informationstechnik und Medientechnik
+            </option>
+            <option value="Maschinenbau und Sicherheitstechnik">
+              Maschinenbau und Sicherheitstechnik
+            </option>
+            <option value="Design und Kunst">Design und Kunst</option>
+            <option value="School of Education">School of Education</option>
+          </select>
+
+          <label for="fachbereich">Fachbereich</label>
+          <input
+            type="text"
+            id="fachbereich"
+            name="fachbereich"
+            placeholder="z.B. Informatik"
+          />
+
+          <label for="semester">Semester</label>
+          <select id="semester" name="semester">
+            <option value="">Bitte Semester auswählen</option>
+            <option value="1-2">1. - 2. Semester</option>
+            <option value="3-4">3. - 4. Semester</option>
+            <option value="5-6">5. - 6. Semester</option>
+            <option value="7 oder mehr">7. Semester oder höher</option>
+          </select>
+
+          <label for="editor">Über mich</label>
+          <div id="editor"></div>
+
+          <button type="submit" class="save-btn" id="submitBtn" disabled>
+            Profil speichern
+          </button>
+        </form>
+      </section>
+
+      <aside class="profile-progress">
+        <h3>Dein Profilstatus</h3>
+
+        <ul>
+          <li id="check-photo">➖ Profilbild optional</li>
+          <li id="check-fullname">➖ Name geladen</li>
+          <li id="check-email">➖ Email geladen</li>
+          <li id="check-faculty">➖ Fakultät eintragen</li>
+          <li id="check-fachbereich">➖ Fachbereich eintragen</li>
+          <li id="check-semester">➖ Semester hinzufügen</li>
+          <li id="check-about">➖ Beschreibung hinzufügen</li>
+        </ul>
+
+        <div class="next-step-box">
+          <strong>Nächster Schritt:</strong>
+          <p>
+            Nach dem Speichern kannst du deine Kurse hinzufügen.
+          </p>
+        </div>
+      </aside>
+    </main>
+
+    <div id="photoModal" class="photo-modal">
+      <div class="photo-modal-content">
+        <button type="button" id="closePhotoModal" class="close-photo-modal">
+          ×
+        </button>
+
+        <h2>Profile Picture</h2>
+
+        <img
+          id="photoModalImage"
+          src="user-placeholder.jpg"
+          alt="Profile Picture groß"
+          class="photo-modal-image"
+        />
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+    <script type="module" src="profile.js"></script>
+  </body>
+</html>
