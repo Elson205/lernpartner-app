@@ -13,19 +13,37 @@
     <header>
       <div class="logo">BUW</div>
 
-      <div class="header-actions">
-        <button type="button" id="partnersBtn" class="header-btn">
-          Lernpartner finden
+      <nav class="top-nav">
+        <button type="button" id="profileBtn" class="nav-btn">
+          <span class="nav-icon">👤</span>
+          <span class="nav-text">Profil</span>
         </button>
 
-        <button type="button" id="chatBtn" class="header-btn">
-          Chat
+        <button type="button" id="coursesBtn" class="nav-btn active">
+          <span class="nav-icon">📚</span>
+          <span class="nav-text">Kurse</span>
         </button>
 
-        <button type="button" id="logoutBtn" class="login-btn">
-          Abmelden
+        <button type="button" id="partnersBtn" class="nav-btn">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Partner</span>
         </button>
-      </div>
+
+        <button type="button" id="requestsBtn" class="nav-btn">
+          <span class="nav-icon">🤝</span>
+          <span class="nav-text">Anfragen</span>
+        </button>
+
+        <button type="button" id="chatBtn" class="nav-btn">
+          <span class="nav-icon">💬</span>
+          <span class="nav-text">Chat</span>
+        </button>
+
+        <button type="button" id="logoutBtn" class="nav-btn logout">
+          <span class="nav-icon">🚪</span>
+          <span class="nav-text">Abmelden</span>
+        </button>
+      </nav>
     </header>
 
     <main class="courses-page">
@@ -72,36 +90,45 @@
             </option>
           </select>
 
-          <label for="faculty">Faculty</label>
+          <label for="faculty">Fakultät</label>
           <select id="faculty" name="faculty" required>
             <option value="">Bitte Fakultät auswählen</option>
+
             <option value="Geistes- und Kulturwissenschaften">
               Geistes- und Kulturwissenschaften
             </option>
+
             <option value="Human- und Sozialwissenschaften">
               Human- und Sozialwissenschaften
             </option>
+
             <option
               value="Wirtschaftswissenschaft - Schumpeter School of Business and Economics"
             >
               Wirtschaftswissenschaft - Schumpeter School of Business and
               Economics
             </option>
+
             <option value="Mathematik und Naturwissenschaften">
               Mathematik und Naturwissenschaften
             </option>
+
             <option value="Architektur und Bauingenieurwesen">
               Architektur und Bauingenieurwesen
             </option>
+
             <option
               value="Elektrotechnik, Informationstechnik und Medientechnik"
             >
               Elektrotechnik, Informationstechnik und Medientechnik
             </option>
+
             <option value="Maschinenbau und Sicherheitstechnik">
               Maschinenbau und Sicherheitstechnik
             </option>
+
             <option value="Design und Kunst">Design und Kunst</option>
+
             <option value="School of Education">School of Education</option>
           </select>
 

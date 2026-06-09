@@ -25,6 +25,11 @@ const searchForm = document.getElementById("partnerSearchForm");
 const searchInput = document.getElementById("partnerSearchInput");
 const partnersList = document.getElementById("partnersList");
 const suggestionsList = document.getElementById("suggestionsList");
+const profileBtn = document.getElementById("profileBtn");
+const coursesBtn = document.getElementById("coursesBtn");
+const partnersBtn = document.getElementById("partnersBtn");
+const requestsBtn = document.getElementById("requestsBtn");
+const chatBtn = document.getElementById("chatBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 
 let currentUser = null;
@@ -176,7 +181,7 @@ function createPartnerCard(user, commonCourses) {
   card.className = "partner-card";
 
   const fullname = user.fullname || "Unbekannter Nutzer";
-  const photoURL = user.photoURL || "user-placeholder.jpg";
+  const photoURL = user.photoURL || "../user-placeholder.jpg";
   const faculty = user.faculty || "-";
   const fachbereich = user.fachbereich || "-";
   const semester = user.semester || "-";
@@ -438,6 +443,45 @@ function renderSuggestions() {
 /* =========================
    EVENTS
 ========================= */
+if (profileBtn) {
+  profileBtn.addEventListener("click", () => {
+    window.location.href = "../Profile/profile.html";
+  });
+}
+
+if (coursesBtn) {
+  coursesBtn.addEventListener("click", () => {
+    window.location.href = "../Courses/courses.html";
+  });
+}
+
+if (partnersBtn) {
+  partnersBtn.addEventListener("click", () => {
+    window.location.href = "../Partners/partners.html";
+  });
+}
+
+if (requestsBtn) {
+  requestsBtn.addEventListener("click", () => {
+    window.location.href = "../Partners/requests.html";
+  });
+}
+
+if (chatBtn) {
+  chatBtn.addEventListener("click", () => {
+    window.location.href = "../Chat/chat.html";
+  });
+}
+
+logoutBtn.addEventListener("click", async () => {
+  try {
+    await signOut(auth);
+    window.location.href = "../Login/login.html";
+  } catch (error) {
+    console.error(error);
+    alert("Abmeldung fehlgeschlagen.");
+  }
+});
 
 searchForm.addEventListener("submit", (event) => {
   event.preventDefault();

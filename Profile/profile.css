@@ -6,6 +6,9 @@ body {
   line-height: 1.5;
 }
 
+/* =========================
+HEADER
+========================= */
 header {
   background-color: #0b2850;
   color: white;
@@ -17,6 +20,10 @@ header {
   padding: 0.8rem 2rem;
 
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .logo {
@@ -24,36 +31,68 @@ header {
   font-weight: 700;
 }
 
-.header-actions {
+/* =========================
+NAVIGATION
+========================= */
+.top-nav {
   display: flex;
-  gap: 0.7rem;
   align-items: center;
+  gap: 0.5rem;
 }
 
-.header-btn,
-.login-btn {
-  background-color: gray;
+.nav-btn {
+  background: rgba(255, 255, 255, 0.12);
   color: white;
 
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
+  padding: 0.55rem 0.8rem;
+  border-radius: 10px;
 
   cursor: pointer;
-  font-weight: bold;
+
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  font-weight: 600;
+  font-size: 0.9rem;
 
   transition:
     background 0.3s,
-    transform 0.2s;
+    transform 0.2s,
+    border 0.3s;
 }
 
-.header-btn:hover,
-.login-btn:hover {
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
   transform: translateY(-2px);
-  background: #8c8c8c;
 }
 
+.nav-btn.active {
+  background: white;
+  color: #0b2850;
+}
+
+.nav-btn.logout {
+  background: #9ca3af;
+}
+
+.nav-btn.logout:hover {
+  background: #ef4444;
+}
+
+.nav-icon {
+  font-size: 1.05rem;
+}
+
+.nav-text {
+  white-space: nowrap;
+}
+
+/* =========================
+PAGE
+========================= */
 .profile-page {
   display: flex;
   justify-content: center;
@@ -94,6 +133,9 @@ h1 {
   margin-bottom: 2rem;
 }
 
+/* =========================
+PROFILE STATUS SIDEBAR
+========================= */
 .profile-progress {
   background: white;
 
@@ -104,7 +146,7 @@ h1 {
   width: 25%;
 
   position: sticky;
-  top: 1.5rem;
+  top: 6rem;
 
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
@@ -155,6 +197,9 @@ h1 {
   margin-bottom: 0;
 }
 
+/* =========================
+FORM ELEMENTS
+========================= */
 label {
   display: block;
 
@@ -199,6 +244,13 @@ select:focus {
   box-shadow: 0 0 0 4px rgba(11, 40, 80, 0.1);
 }
 
+#profileForm {
+  width: 100%;
+}
+
+/* =========================
+PROFILE IMAGE SECTION
+========================= */
 .top-profile-section {
   display: flex;
 
@@ -255,12 +307,18 @@ select:focus {
   margin-top: 0;
 }
 
+/* =========================
+UPLOAD PHOTO
+========================= */
 #uploadPhoto {
   display: none;
 }
 
 .custom-upload {
+  display: inline-block;
+
   margin-top: 0.4rem;
+  margin-bottom: 0;
 
   background: #0b2850;
   color: white;
@@ -294,6 +352,70 @@ select:focus {
   font-size: 0.8rem;
 }
 
+/* =========================
+NATIONALITY AUTOCOMPLETE
+========================= */
+.autocomplete {
+  position: relative;
+}
+
+.autocomplete-list {
+  position: absolute;
+
+  top: 100%;
+  left: 0;
+  right: 0;
+
+  background: white;
+
+  border: 1px solid #ccc;
+  border-top: none;
+
+  border-radius: 0 0 8px 8px;
+
+  max-height: 220px;
+  overflow-y: auto;
+
+  z-index: 100;
+
+  display: none;
+
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.autocomplete-list.open {
+  display: block;
+}
+
+.autocomplete-item {
+  padding: 0.75rem;
+
+  cursor: pointer;
+
+  transition: background 0.2s;
+}
+
+.autocomplete-item:hover {
+  background: #f0f4f8;
+}
+
+.autocomplete-item:not(:last-child) {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.optional-info {
+  display: block;
+
+  margin-top: 0.4rem;
+
+  color: #6b7280;
+
+  font-size: 0.85rem;
+}
+
+/* =========================
+QUILL EDITOR
+========================= */
 #editor {
   background: white;
   min-height: 170px;
@@ -317,6 +439,14 @@ select:focus {
   min-height: 130px;
 }
 
+.ql-container.ql-snow:focus-within {
+  border-color: #0b2850;
+  box-shadow: 0 0 0 4px rgba(11, 40, 80, 0.1);
+}
+
+/* =========================
+SAVE BUTTON
+========================= */
 .save-btn {
   background: #0b2850;
   color: white;
@@ -352,6 +482,9 @@ select:focus {
   transform: none;
 }
 
+/* =========================
+VALIDATION STATES
+========================= */
 .valid {
   color: #2ecc71;
   font-weight: 600;
@@ -370,6 +503,9 @@ select:focus {
   background: #f8fafc !important;
 }
 
+/* =========================
+PHOTO MODAL
+========================= */
 .photo-modal {
   position: fixed;
   inset: 0;
@@ -468,6 +604,9 @@ select:focus {
   }
 }
 
+/* =========================
+TABLET
+========================= */
 @media (max-width: 1050px) {
   .profile-page {
     padding: 2rem;
@@ -483,6 +622,9 @@ select:focus {
   }
 }
 
+/* =========================
+MOBILE
+========================= */
 @media (max-width: 900px) {
   header {
     padding: 0.8rem 1rem;
@@ -490,16 +632,19 @@ select:focus {
     gap: 0.8rem;
   }
 
-  .header-actions {
-    flex-wrap: wrap;
+  .top-nav {
+    width: 100%;
     justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .nav-btn {
+    padding: 0.5rem 0.7rem;
   }
 
   .profile-page {
     flex-direction: column;
-
     padding: 1rem;
-
     gap: 1rem;
   }
 
@@ -533,6 +678,27 @@ select:focus {
 
   .intro-text {
     text-align: center;
+  }
+}
+
+/* =========================
+SMALL SCREENS
+========================= */
+@media (max-width: 600px) {
+  .nav-text {
+    display: none;
+  }
+
+  .nav-btn {
+    width: 42px;
+    height: 42px;
+    justify-content: center;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .nav-icon {
+    font-size: 1.15rem;
   }
 }
 

@@ -23,9 +23,13 @@ const courseList = document.getElementById("courseList");
 const searchInput = document.getElementById("searchInput");
 
 const addCourseBtn = document.getElementById("addCourseBtn");
-const logoutBtn = document.getElementById("logoutBtn");
+
+const profileBtn = document.getElementById("profileBtn");
+const coursesBtn = document.getElementById("coursesBtn");
 const partnersBtn = document.getElementById("partnersBtn");
+const requestsBtn = document.getElementById("requestsBtn");
 const chatBtn = document.getElementById("chatBtn");
+const logoutBtn = document.getElementById("logoutBtn");
 
 let currentUser = null;
 let courses = [];
@@ -50,8 +54,28 @@ function escapeHTML(text = "") {
     .replaceAll("'", "&#039;");
 }
 
+function normalizeCourse(course) {
+  if (typeof course === "string") {
+    return {
+      name: course,
+      semester: "",
+      faculty: "",
+    };
+  }
+
+  return {
+    name: course?.name || "",
+    semester: course?.semester || "",
+    faculty: course?.faculty || "",
+  };
+}
+
 function createCourseId(course) {
-  return `${normalizeText(course.name)}_${normalizeText(course.semester)}_${normalizeText(course.faculty)}`;
+  const normalizedCourse = normalizeCourse(course);
+
+  return `${normalizeText(normalizedCourse.name)}_${normalizeText(
+    normalizedCourse.semester
+  )}_${normalizeText(normalizedCourse.faculty)}`;
 }
 
 /* =========================
@@ -81,13 +105,14 @@ async function loadCoursesFromFirebase() {
   const userData = userSnap.data();
 
   courses = Array.isArray(userData.activeCourses)
-    ? userData.activeCourses
+    ? userData.activeCourses.map(normalizeCourse)
     : [];
 }
 
 async function saveCoursesToFirebase() {
   await updateDoc(doc(db, "users", currentUser.uid), {
     activeCourses: courses,
+    updatedAt: serverTimestamp(),
   });
 }
 
@@ -153,8 +178,7 @@ function renderFilteredCourses(list) {
   courseList.innerHTML = "";
 
   if (list.length === 0) {
-    courseList.innerHTML =
-      '<p class="empty-message">Keine Kurse gefunden.</p>';
+    courseList.innerHTML = '<p class="empty-message">Keine Kurse gefunden.</p>';
     return;
   }
 
@@ -240,18 +264,47 @@ searchInput.addEventListener("input", function () {
    HEADER NAVIGATION
 ========================= */
 
-partnersBtn.addEventListener("click", () => {
-  window.location.href = "../Partners/partners.html";
-});
+if (profileBtn) {
+  profileBtn.addEventListener("click", () => {
+    window.location.href = "../Profile/profile.html";
+  });
+}
 
-chatBtn.addEventListener("click", () => {
-  window.location.href = "../Chat/chat.html";
-});
+if (coursesBtn) {
+  coursesBtn.addEventListener("click", () => {
+    window.location.href = "../Courses/courses.html";
+  });
+}
 
-logoutBtn.addEventListener("click", async () => {
-  await signOut(auth);
-  window.location.href = "../Login/login.html";
-});
+if (partnersBtn) {
+  partnersBtn.addEventListener("click", () => {
+    window.location.href = "../Partners/partners.html";
+  });
+}
+
+if (requestsBtn) {
+  requestsBtn.addEventListener("click", () => {
+    window.location.href = "../Partners/requests.html";
+  });
+}
+
+if (chatBtn) {
+  chatBtn.addEventListener("click", () => {
+    window.location.href = "../Chat/chat.html";
+  });
+}
+
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    try {
+      await signOut(auth);
+      window.location.href = "../Login/login.html";
+    } catch (error) {
+      console.error(error);
+      alert("Abmeldung fehlgeschlagen.");
+    }
+  });
+}
 
 /* =========================
    INIT

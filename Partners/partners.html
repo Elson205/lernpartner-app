@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>Lernpartner finden - BUW</title>
+
     <link rel="stylesheet" href="partners.css" />
   </head>
 
@@ -11,20 +13,52 @@
     <header>
       <div class="logo">BUW</div>
 
-      <div class="header-actions">
-        <button type="button" id="logoutBtn" class="login-btn">Abmelden</button>
-      </div>
+      <nav class="top-nav">
+        <button type="button" id="profileBtn" class="nav-btn">
+          <span class="nav-icon">👤</span>
+          <span class="nav-text">Profil</span>
+        </button>
+
+        <button type="button" id="coursesBtn" class="nav-btn">
+          <span class="nav-icon">📚</span>
+          <span class="nav-text">Kurse</span>
+        </button>
+
+        <button type="button" id="partnersBtn" class="nav-btn active">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Partner</span>
+        </button>
+
+        <button type="button" id="requestsBtn" class="nav-btn">
+          <span class="nav-icon">🤝</span>
+          <span class="nav-text">Anfragen</span>
+        </button>
+
+        <button type="button" id="chatBtn" class="nav-btn">
+          <span class="nav-icon">💬</span>
+          <span class="nav-text">Chat</span>
+        </button>
+
+        <button type="button" id="logoutBtn" class="nav-btn logout">
+          <span class="nav-icon">🚪</span>
+          <span class="nav-text">Abmelden</span>
+        </button>
+      </nav>
     </header>
 
     <main class="partners-page">
       <section class="search-section">
         <h1>Lernpartner finden</h1>
 
+        <p class="intro-text">
+          Finde Studierende, die ähnliche Kurse belegen oder zu deinem Studienbereich passen.
+        </p>
+
         <form id="partnerSearchForm" class="partner-search-form">
           <input
             type="text"
             id="partnerSearchInput"
-            placeholder="Suche nach Kurs oder Modul: Statistik 2"
+            placeholder="Suche nach Kurs oder Modul, z.B. Statistik 2"
             autocomplete="off"
           />
 
@@ -36,14 +70,18 @@
 
       <section class="results-layout">
         <div id="partnersList" class="partners-list">
-          <!-- Les profils seront ajoutés ici avec JavaScript -->
+          <p class="empty-message">
+            Suche nach einem Kurs oder wähle einen Vorschlag aus.
+          </p>
         </div>
 
         <aside class="suggestions-box">
           <h3>Vorschläge basierend auf deinen Kursen</h3>
 
           <div id="suggestionsList">
-            <!-- Suggestions ajoutées avec JavaScript -->
+            <p class="empty-message">
+              Deine Kursvorschläge werden hier angezeigt.
+            </p>
           </div>
         </aside>
       </section>
