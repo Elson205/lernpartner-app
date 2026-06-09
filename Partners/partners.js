@@ -3,6 +3,7 @@ import { app } from "../firebase-config.js";
 import {
   getAuth,
   onAuthStateChanged,
+  signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 import {
@@ -19,12 +20,15 @@ import {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+
 const searchForm = document.getElementById("partnerSearchForm");
 const searchInput = document.getElementById("partnerSearchInput");
 const partnersList = document.getElementById("partnersList");
 const suggestionsList = document.getElementById("suggestionsList");
+const logoutBtn = document.getElementById("logoutBtn");
 
 let currentUser = null;
+let currentUserData = null;
 let allUsers = [];
 let myCourses = [];
 
@@ -33,7 +37,7 @@ let myCourses = [];
 ========================= */
 
 function normalizeText(text = "") {
-  return text
+  return String(text)
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
@@ -48,6 +52,78 @@ function escapeHTML(text = "") {
     .replaceAll("'", "&#039;");
 }
 
+function getCourseName(course) {
+  if (typeof course === "string") {
+    return course;
+  }
+
+  if (course && typeof course === "object") {
+    return course.name || "";
+  }
+
+  return "";
+}
+
+function getCourseFaculty(course) {
+  if (course && typeof course === "object") {
+    return course.faculty || "";
+  }
+
+  return "";
+}
+
+function getCourseSemester(course) {
+  if (course && typeof course === "object") {
+    return course.semester || "";
+  }
+
+  return "";
+}
+
+/* =========================
+   PROFIL COMPLET ?
+========================= */
+
+function hasCompletedProfile(userData) {
+  return (
+    userData.fullname &&
+    userData.email &&
+    userData.faculty &&
+    userData.fachbereich &&
+    userData.semester &&
+    userData.aboutText
+  );
+}
+
+function hasCourses(userData) {
+  return (
+    Array.isArray(userData.activeCourses) &&
+    userData.activeCourses.length > 0
+  );
+}
+
+function redirectIfProfileOrCoursesMissing(userData) {
+  if (!hasCompletedProfile(userData)) {
+    alert(
+      "Bitte vervollständige zuerst dein Profil, bevor du Lernpartner suchen kannst."
+    );
+
+    window.location.href = "../Profile/profile.html";
+    return true;
+  }
+
+  if (!hasCourses(userData)) {
+    alert(
+      "Bitte füge zuerst mindestens einen Kurs hinzu, bevor du Lernpartner suchen kannst."
+    );
+
+    window.location.href = "../Courses/courses.html";
+    return true;
+  }
+
+  return false;
+}
+
 /* =========================
    CHARGER UTILISATEUR ACTUEL
 ========================= */
@@ -56,13 +132,22 @@ async function loadCurrentUserProfile() {
   const userSnap = await getDoc(doc(db, "users", currentUser.uid));
 
   if (!userSnap.exists()) {
-    alert("Bitte zuerst dein Profil vervollständigen.");
+    alert("Bitte erstelle zuerst ein Konto.");
     window.location.href = "../Signup/signup.html";
-    return;
+    return false;
   }
 
-  const userData = userSnap.data();
-  myCourses = userData.activeCourses || [];
+  currentUserData = userSnap.data();
+
+  const shouldRedirect = redirectIfProfileOrCoursesMissing(currentUserData);
+
+  if (shouldRedirect) {
+    return false;
+  }
+
+  myCourses = currentUserData.activeCourses || [];
+
+  return true;
 }
 
 /* =========================
@@ -77,7 +162,9 @@ async function loadUsers() {
       id: docSnap.id,
       ...docSnap.data(),
     }))
-    .filter((user) => user.id !== currentUser.uid);
+    .filter((user) => user.id !== currentUser.uid)
+    .filter((user) => hasCompletedProfile(user))
+    .filter((user) => hasCourses(user));
 }
 
 /* =========================
@@ -91,6 +178,7 @@ function createPartnerCard(user, commonCourses) {
   const fullname = user.fullname || "Unbekannter Nutzer";
   const photoURL = user.photoURL || "user-placeholder.jpg";
   const faculty = user.faculty || "-";
+  const fachbereich = user.fachbereich || "-";
   const semester = user.semester || "-";
   const about = user.aboutText || user.about || "-";
 
@@ -107,6 +195,7 @@ function createPartnerCard(user, commonCourses) {
 
         <div class="partner-meta">
           <div>${escapeHTML(faculty)}</div>
+          <div>${escapeHTML(fachbereich)}</div>
           <div>Semester: ${escapeHTML(semester)}</div>
         </div>
       </div>
@@ -114,7 +203,11 @@ function createPartnerCard(user, commonCourses) {
 
     <div class="partner-section">
       <strong>Gemeinsame Kurse:</strong>
-      ${commonCourses.length > 0 ? escapeHTML(commonCourses.join(", ")) : "Keine"}
+      ${
+        commonCourses.length > 0
+          ? escapeHTML(commonCourses.join(", "))
+          : "Keine"
+      }
     </div>
 
     <div class="partner-section partner-about">
@@ -164,6 +257,16 @@ function renderPartners(results) {
    RECHERCHE PARTENAIRE
 ========================= */
 
+function getCommonCoursesBetweenUsers(userCourses, searchedValue) {
+  const normalizedQuery = normalizeText(searchedValue);
+
+  return userCourses
+    .map((course) => getCourseName(course))
+    .filter((courseName) =>
+      normalizeText(courseName).includes(normalizedQuery)
+    );
+}
+
 function searchPartners(searchValue) {
   const normalizedQuery = normalizeText(searchValue);
 
@@ -174,10 +277,11 @@ function searchPartners(searchValue) {
 
   const results = allUsers
     .map((user) => {
-      const courses = user.activeCourses || user.courses || [];
+      const userCourses = user.activeCourses || [];
 
-      const commonCourses = courses.filter((course) =>
-        normalizeText(course).includes(normalizedQuery)
+      const commonCourses = getCommonCoursesBetweenUsers(
+        userCourses,
+        searchValue
       );
 
       return {
@@ -195,14 +299,30 @@ function searchPartners(searchValue) {
 ========================= */
 
 function showProfile(user) {
-  const courses = user.activeCourses || user.courses || [];
+  const courses = user.activeCourses || [];
+
+  const courseText =
+    courses
+      .map((course) => {
+        const name = getCourseName(course);
+        const semester = getCourseSemester(course);
+        const faculty = getCourseFaculty(course);
+
+        if (!name) return "";
+
+        return `${name}${semester ? " - " + semester : ""}${
+          faculty ? " - " + faculty : ""
+        }`;
+      })
+      .filter(Boolean)
+      .join("\n") || "-";
 
   alert(
     `Profil von ${user.fullname || "Unbekannter Nutzer"}\n\n` +
       `Fakultät: ${user.faculty || "-"}\n` +
       `Fachbereich: ${user.fachbereich || "-"}\n` +
-      `Semester: ${user.semester || "-"}\n` +
-      `Kurse: ${courses.join(", ") || "-"}\n\n` +
+      `Semester: ${user.semester || "-"}\n\n` +
+      `Kurse:\n${courseText}\n\n` +
       `Über mich:\n${user.aboutText || user.about || "-"}`
   );
 }
@@ -253,7 +373,9 @@ async function sendRequest(user) {
   const exists = await requestAlreadyExists(senderId, receiverId);
 
   if (exists) {
-    alert("Zwischen euch existiert bereits eine Anfrage oder Lernpartnerschaft.");
+    alert(
+      "Zwischen euch existiert bereits eine Anfrage oder Lernpartnerschaft."
+    );
     return;
   }
 
@@ -283,7 +405,9 @@ function renderSuggestions() {
   }
 
   myCourses.forEach((course) => {
-    const courseName = typeof course === "string" ? course : course.name;
+    const courseName = getCourseName(course);
+    const courseSemester = getCourseSemester(course);
+    const courseFaculty = getCourseFaculty(course);
 
     if (!courseName) return;
 
@@ -293,6 +417,13 @@ function renderSuggestions() {
     item.innerHTML = `
       <strong>Gemeinsamer Kurs:</strong><br />
       ${escapeHTML(courseName)}
+      ${
+        courseSemester || courseFaculty
+          ? `<br /><small>${escapeHTML(courseSemester)} ${
+              courseFaculty ? "- " + escapeHTML(courseFaculty) : ""
+            }</small>`
+          : ""
+      }
     `;
 
     item.addEventListener("click", () => {
@@ -316,6 +447,15 @@ searchForm.addEventListener("submit", (event) => {
 searchInput.addEventListener("input", () => {
   searchPartners(searchInput.value);
 });
+logoutBtn.addEventListener("click", async () => {
+  try {
+    await signOut(auth);
+    window.location.href = "../Login/login.html";
+  } catch (error) {
+    console.error(error);
+    alert("Abmeldung fehlgeschlagen.");
+  }
+});
 
 /* =========================
    INIT
@@ -330,14 +470,18 @@ onAuthStateChanged(auth, async (user) => {
 
   currentUser = user;
 
-  await loadCurrentUserProfile();
+  const profileCanContinue = await loadCurrentUserProfile();
+
+  if (!profileCanContinue) {
+    return;
+  }
+
   await loadUsers();
 
   renderSuggestions();
 
   if (myCourses.length > 0) {
-    const firstCourse =
-      typeof myCourses[0] === "string" ? myCourses[0] : myCourses[0].name;
+    const firstCourse = getCourseName(myCourses[0]);
 
     searchInput.value = firstCourse;
     searchPartners(firstCourse);

@@ -208,7 +208,7 @@ async function loadRequests() {
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    window.location.href = "login.html";
+    window.location.href = "../Login/login.html";
     return;
   }
 
