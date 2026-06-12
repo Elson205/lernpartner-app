@@ -408,3 +408,157 @@ header {
     font-size: 1.15rem;
   }
 }
+
+/* =========================
+   CUSTOM MODAL / ALERT REPLACEMENT
+========================= */
+.custom-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-modal.hidden {
+  display: none;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(11, 40, 80, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.modal-box {
+  position: relative;
+
+  width: 90%;
+  max-width: 430px;
+
+  background: white;
+  border-radius: 18px;
+
+  padding: 2rem;
+
+  text-align: center;
+
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+
+  animation: modalFadeIn 0.25s ease;
+}
+
+.modal-icon {
+  width: 58px;
+  height: 58px;
+
+  margin: 0 auto 1rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #eaf3ff;
+
+  font-size: 1.8rem;
+}
+
+.modal-box h2 {
+  margin: 0 0 0.8rem;
+
+  color: #0b2850;
+  font-size: 1.4rem;
+}
+
+/* =========================
+   MODIFICATION: Affichage correct du texte dans la modal
+   white-space: pre-line permet d'afficher correctement les retours à la ligne \n du profil.
+========================= */
+.modal-box p {
+  margin: 0;
+
+  color: #374151;
+  line-height: 1.5;
+  font-size: 0.95rem;
+
+  white-space: pre-line;
+}
+
+.modal-box button {
+  margin-top: 1.5rem;
+
+  padding: 0.85rem 1.6rem;
+
+  border: none;
+  border-radius: 10px;
+
+  background: #0b2850;
+  color: white;
+
+  font-weight: 700;
+  cursor: pointer;
+
+  transition:
+    background 0.3s,
+    transform 0.2s;
+}
+
+.modal-box button:hover {
+  background: #163b70;
+  transform: translateY(-2px);
+}
+
+/* Types de messages */
+.modal-box.info .modal-icon {
+  background: #eaf3ff;
+}
+
+.modal-box.success .modal-icon {
+  background: #e7f7ec;
+}
+
+.modal-box.error .modal-icon {
+  background: #fdeaea;
+}
+
+.modal-box.warning .modal-icon {
+  background: #fff7e6;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* =========================
+   MODIFICATION: Adaptation mobile de la modal
+   Cette partie est placée à la fin pour éviter qu'elle soit écrasée par le style général.
+========================= */
+@media (max-width: 600px) {
+  .modal-box {
+    width: calc(100% - 2rem);
+    padding: 1.5rem;
+  }
+
+  .modal-box h2 {
+    font-size: 1.2rem;
+  }
+
+  .modal-box p {
+    font-size: 0.9rem;
+  }
+}

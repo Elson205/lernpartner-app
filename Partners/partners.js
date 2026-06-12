@@ -32,6 +32,85 @@ const requestsBtn = document.getElementById("requestsBtn");
 const chatBtn = document.getElementById("chatBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 
+/* =========================
+   MODIFICATION: Récupération des éléments HTML de la modal personnalisée
+   Ces éléments remplacent les alert() classiques par une popup au centre de la page.
+========================= */
+const customModal = document.getElementById("customModal");
+const modalBox = document.querySelector(".modal-box");
+const modalIcon = document.getElementById("modalIcon");
+const modalTitle = document.getElementById("modalTitle");
+const modalMessage = document.getElementById("modalMessage");
+const modalCloseBtn = document.getElementById("modalCloseBtn");
+
+/* =========================
+   MODIFICATION: Fonction pour afficher une modal personnalisée
+   Cette fonction remplace alert() et permet aussi d'exécuter une action après le clic sur OK.
+========================= */
+function showModal(type, title, message, callback = null) {
+  if (
+    !customModal ||
+    !modalBox ||
+    !modalIcon ||
+    !modalTitle ||
+    !modalMessage ||
+    !modalCloseBtn
+  ) {
+    console.warn("Modal elements are missing.");
+    console.log(`${title}: ${message}`);
+
+    if (typeof callback === "function") {
+      callback();
+    }
+
+    return;
+  }
+
+  const icons = {
+    info: "ℹ️",
+    success: "✅",
+    error: "❌",
+    warning: "⚠️",
+  };
+
+  modalBox.className = `modal-box ${type}`;
+  modalIcon.textContent = icons[type] || "ℹ️";
+  modalTitle.textContent = title;
+  modalMessage.textContent = message;
+
+  customModal.classList.remove("hidden");
+
+  modalCloseBtn.onclick = () => {
+    closeModal();
+
+    if (typeof callback === "function") {
+      callback();
+    }
+  };
+}
+
+/* =========================
+   MODIFICATION: Fonction pour fermer la modal
+   Elle cache simplement la popup personnalisée.
+========================= */
+function closeModal() {
+  if (customModal) {
+    customModal.classList.add("hidden");
+  }
+}
+
+/* =========================
+   MODIFICATION: Fermeture de la modal en cliquant sur l'arrière-plan flouté
+   L'utilisateur peut fermer la popup avec le bouton OK ou en cliquant derrière.
+========================= */
+if (customModal) {
+  customModal.addEventListener("click", (event) => {
+    if (event.target.classList.contains("modal-backdrop")) {
+      closeModal();
+    }
+  });
+}
+
 let currentUser = null;
 let currentUserData = null;
 let allUsers = [];
@@ -102,27 +181,34 @@ function hasCompletedProfile(userData) {
 
 function hasCourses(userData) {
   return (
-    Array.isArray(userData.activeCourses) &&
-    userData.activeCourses.length > 0
+    Array.isArray(userData.activeCourses) && userData.activeCourses.length > 0
   );
 }
 
 function redirectIfProfileOrCoursesMissing(userData) {
   if (!hasCompletedProfile(userData)) {
-    alert(
-      "Bitte vervollständige zuerst dein Profil, bevor du Lernpartner suchen kannst."
+    showModal(
+      "warning",
+      "Profil unvollständig",
+      "Bitte vervollständige zuerst dein Profil, bevor du Lernpartner suchen kannst.",
+      () => {
+        window.location.href = "../Profile/profile.html";
+      },
     );
 
-    window.location.href = "../Profile/profile.html";
     return true;
   }
 
   if (!hasCourses(userData)) {
-    alert(
-      "Bitte füge zuerst mindestens einen Kurs hinzu, bevor du Lernpartner suchen kannst."
+    showModal(
+      "warning",
+      "Keine Kurse gefunden",
+      "Bitte füge zuerst mindestens einen Kurs hinzu, bevor du Lernpartner suchen kannst.",
+      () => {
+        window.location.href = "../Courses/courses.html";
+      },
     );
 
-    window.location.href = "../Courses/courses.html";
     return true;
   }
 
@@ -137,8 +223,15 @@ async function loadCurrentUserProfile() {
   const userSnap = await getDoc(doc(db, "users", currentUser.uid));
 
   if (!userSnap.exists()) {
-    alert("Bitte erstelle zuerst ein Konto.");
-    window.location.href = "../Signup/signup.html";
+    showModal(
+      "warning",
+      "Konto nicht gefunden",
+      "Bitte erstelle zuerst ein Konto.",
+      () => {
+        window.location.href = "../Signup/signup.html";
+      },
+    );
+
     return false;
   }
 
@@ -322,9 +415,10 @@ function showProfile(user) {
       .filter(Boolean)
       .join("\n") || "-";
 
-  alert(
-    `Profil von ${user.fullname || "Unbekannter Nutzer"}\n\n` +
-      `Fakultät: ${user.faculty || "-"}\n` +
+  showModal(
+    "info",
+    `Profil von ${user.fullname || "Unbekannter Nutzer"}`,
+    `Fakultät: ${user.faculty || "-"}\n` +
       `Fachbereich: ${user.fachbereich || "-"}\n` +
       `Semester: ${user.semester || "-"}\n\n` +
       `Kurse:\n${courseText}\n\n` +
@@ -362,8 +456,15 @@ async function requestAlreadyExists(senderId, receiverId) {
 
 async function sendRequest(user) {
   if (!currentUser) {
-    alert("Bitte zuerst anmelden.");
-    window.location.href = "../Login/login.html";
+    showModal(
+      "warning",
+      "Nicht angemeldet",
+      "Bitte melde dich zuerst an.",
+      () => {
+        window.location.href = "../Login/login.html";
+      }
+    );
+
     return;
   }
 
@@ -371,16 +472,24 @@ async function sendRequest(user) {
   const receiverId = user.id;
 
   if (senderId === receiverId) {
-    alert("Du kannst dir selbst keine Anfrage senden.");
+    showModal(
+      "warning",
+      "Nicht möglich",
+      "Du kannst dir selbst keine Anfrage senden.",
+    );
+
     return;
   }
 
   const exists = await requestAlreadyExists(senderId, receiverId);
 
   if (exists) {
-    alert(
-      "Zwischen euch existiert bereits eine Anfrage oder Lernpartnerschaft."
+    showModal(
+      "info",
+      "Anfrage bereits vorhanden",
+      "Zwischen euch existiert bereits eine Anfrage oder Lernpartnerschaft.",
     );
+
     return;
   }
 
@@ -393,7 +502,11 @@ async function sendRequest(user) {
     rejectedAt: null,
   });
 
-  alert("Anfrage gesendet ✅");
+  showModal(
+    "success",
+    "Anfrage gesendet",
+    "Deine Lernpartner-Anfrage wurde erfolgreich gesendet.",
+  );
 }
 
 /* =========================
@@ -479,10 +592,14 @@ logoutBtn.addEventListener("click", async () => {
     window.location.href = "../Login/login.html";
   } catch (error) {
     console.error(error);
-    alert("Abmeldung fehlgeschlagen.");
+
+    showModal(
+      "error",
+      "Abmeldung fehlgeschlagen",
+      "Du konntest nicht abgemeldet werden. Bitte versuche es erneut.",
+    );
   }
 });
-
 searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
   searchPartners(searchInput.value);
@@ -491,15 +608,6 @@ searchForm.addEventListener("submit", (event) => {
 searchInput.addEventListener("input", () => {
   searchPartners(searchInput.value);
 });
-logoutBtn.addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-    window.location.href = "../Login/login.html";
-  } catch (error) {
-    console.error(error);
-    alert("Abmeldung fehlgeschlagen.");
-  }
-});
 
 /* =========================
    INIT
@@ -507,8 +615,15 @@ logoutBtn.addEventListener("click", async () => {
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    alert("Bitte zuerst anmelden.");
-    window.location.href = "../Login/login.html";
+    showModal(
+      "warning",
+      "Nicht angemeldet",
+      "Bitte melde dich zuerst an.",
+      () => {
+        window.location.href = "../Login/login.html";
+      },
+    );
+
     return;
   }
 
