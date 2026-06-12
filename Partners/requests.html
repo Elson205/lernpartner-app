@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
@@ -51,7 +51,8 @@
         <h1>Partneranfragen</h1>
 
         <p class="intro-text">
-          Hier kannst du erhaltene Anfragen annehmen oder ablehnen und deine gesendeten Anfragen verfolgen.
+          Hier kannst du erhaltene Anfragen annehmen oder ablehnen und deine
+          gesendeten Anfragen verfolgen.
         </p>
       </section>
 
@@ -71,6 +72,25 @@
         </div>
       </section>
     </main>
+
+    <!-- =========================
+         MODIFICATION: Ajout de la modal personnalisée pour remplacer les alert()
+         Cette modal affichera les messages d’information, de succès, d’erreur ou d’avertissement.
+         Elle sera utilisée dans requests.js avec showModal().
+    ========================= -->
+    <div id="customModal" class="custom-modal hidden">
+      <div class="modal-backdrop"></div>
+
+      <div class="modal-box">
+        <div id="modalIcon" class="modal-icon">ℹ️</div>
+
+        <h2 id="modalTitle">Hinweis</h2>
+
+        <p id="modalMessage">Nachricht...</p>
+
+        <button type="button" id="modalCloseBtn">OK</button>
+      </div>
+    </div>
 
     <script type="module" src="requests.js"></script>
   </body>

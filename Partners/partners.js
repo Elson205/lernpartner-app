@@ -25,6 +25,7 @@ const searchForm = document.getElementById("partnerSearchForm");
 const searchInput = document.getElementById("partnerSearchInput");
 const partnersList = document.getElementById("partnersList");
 const suggestionsList = document.getElementById("suggestionsList");
+
 const profileBtn = document.getElementById("profileBtn");
 const coursesBtn = document.getElementById("coursesBtn");
 const partnersBtn = document.getElementById("partnersBtn");
@@ -45,7 +46,7 @@ const modalCloseBtn = document.getElementById("modalCloseBtn");
 
 /* =========================
    MODIFICATION: Fonction pour afficher une modal personnalisée
-   Cette fonction remplace alert() et permet aussi d'exécuter une action après le clic sur OK.
+   Cette fonction remplace alert() et permet aussi d’exécuter une action après le clic sur OK.
 ========================= */
 function showModal(type, title, message, callback = null) {
   if (
@@ -56,13 +57,8 @@ function showModal(type, title, message, callback = null) {
     !modalMessage ||
     !modalCloseBtn
   ) {
-    console.warn("Modal elements are missing.");
-    console.log(`${title}: ${message}`);
-
-    if (typeof callback === "function") {
-      callback();
-    }
-
+    console.error("Modal elements are missing.");
+    console.error(`${title}: ${message}`);
     return;
   }
 
@@ -100,8 +96,8 @@ function closeModal() {
 }
 
 /* =========================
-   MODIFICATION: Fermeture de la modal en cliquant sur l'arrière-plan flouté
-   L'utilisateur peut fermer la popup avec le bouton OK ou en cliquant derrière.
+   MODIFICATION: Fermeture de la modal en cliquant sur l’arrière-plan flouté
+   L’utilisateur peut fermer la popup avec le bouton OK ou en cliquant derrière.
 ========================= */
 if (customModal) {
   customModal.addEventListener("click", (event) => {
@@ -193,7 +189,7 @@ function redirectIfProfileOrCoursesMissing(userData) {
       "Bitte vervollständige zuerst dein Profil, bevor du Lernpartner suchen kannst.",
       () => {
         window.location.href = "../Profile/profile.html";
-      },
+      }
     );
 
     return true;
@@ -206,7 +202,7 @@ function redirectIfProfileOrCoursesMissing(userData) {
       "Bitte füge zuerst mindestens einen Kurs hinzu, bevor du Lernpartner suchen kannst.",
       () => {
         window.location.href = "../Courses/courses.html";
-      },
+      }
     );
 
     return true;
@@ -229,7 +225,7 @@ async function loadCurrentUserProfile() {
       "Bitte erstelle zuerst ein Konto.",
       () => {
         window.location.href = "../Signup/signup.html";
-      },
+      }
     );
 
     return false;
@@ -430,6 +426,10 @@ function showProfile(user) {
    DEMANDE PARTENAIRE
 ========================= */
 
+/* =========================
+   MODIFICATION: Vérification uniquement des demandes encore actives
+   Une ancienne demande refusée, terminée ou supprimée ne bloque plus une nouvelle demande.
+========================= */
 async function requestAlreadyExists(senderId, receiverId) {
   const directRequestSnap = await getDocs(
     query(
@@ -439,10 +439,6 @@ async function requestAlreadyExists(senderId, receiverId) {
     )
   );
 
-  if (!directRequestSnap.empty) {
-    return true;
-  }
-
   const reverseRequestSnap = await getDocs(
     query(
       collection(db, "partnerRequests"),
@@ -451,7 +447,16 @@ async function requestAlreadyExists(senderId, receiverId) {
     )
   );
 
-  return !reverseRequestSnap.empty;
+  const allRequests = [...directRequestSnap.docs, ...reverseRequestSnap.docs];
+
+  return allRequests.some((docSnap) => {
+    const requestData = docSnap.data();
+
+    return (
+      requestData.status === "pending" ||
+      requestData.status === "accepted"
+    );
+  });
 }
 
 async function sendRequest(user) {
@@ -475,19 +480,23 @@ async function sendRequest(user) {
     showModal(
       "warning",
       "Nicht möglich",
-      "Du kannst dir selbst keine Anfrage senden.",
+      "Du kannst dir selbst keine Anfrage senden."
     );
 
     return;
   }
 
-  const exists = await requestAlreadyExists(senderId, receiverId);
+  /* =========================
+     MODIFICATION: Blocage uniquement si une demande active existe déjà
+     Les demandes supprimées, refusées ou terminées ne bloquent plus une nouvelle demande.
+  ========================= */
+  const activeRequestExists = await requestAlreadyExists(senderId, receiverId);
 
-  if (exists) {
+  if (activeRequestExists) {
     showModal(
       "info",
       "Anfrage bereits vorhanden",
-      "Zwischen euch existiert bereits eine Anfrage oder Lernpartnerschaft.",
+      "Zwischen euch existiert bereits eine offene Anfrage oder aktive Lernpartnerschaft."
     );
 
     return;
@@ -500,12 +509,13 @@ async function sendRequest(user) {
     createdAt: serverTimestamp(),
     acceptedAt: null,
     rejectedAt: null,
+    endedAt: null,
   });
 
   showModal(
     "success",
     "Anfrage gesendet",
-    "Deine Lernpartner-Anfrage wurde erfolgreich gesendet.",
+    "Deine Lernpartner-Anfrage wurde erfolgreich gesendet."
   );
 }
 
@@ -556,6 +566,7 @@ function renderSuggestions() {
 /* =========================
    EVENTS
 ========================= */
+
 if (profileBtn) {
   profileBtn.addEventListener("click", () => {
     window.location.href = "../Profile/profile.html";
@@ -586,20 +597,23 @@ if (chatBtn) {
   });
 }
 
-logoutBtn.addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-    window.location.href = "../Login/login.html";
-  } catch (error) {
-    console.error(error);
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    try {
+      await signOut(auth);
+      window.location.href = "../Login/login.html";
+    } catch (error) {
+      console.error(error);
 
-    showModal(
-      "error",
-      "Abmeldung fehlgeschlagen",
-      "Du konntest nicht abgemeldet werden. Bitte versuche es erneut.",
-    );
-  }
-});
+      showModal(
+        "error",
+        "Abmeldung fehlgeschlagen",
+        "Du konntest nicht abgemeldet werden. Bitte versuche es erneut."
+      );
+    }
+  });
+}
+
 searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
   searchPartners(searchInput.value);
@@ -621,7 +635,7 @@ onAuthStateChanged(auth, async (user) => {
       "Bitte melde dich zuerst an.",
       () => {
         window.location.href = "../Login/login.html";
-      },
+      }
     );
 
     return;
