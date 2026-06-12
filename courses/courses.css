@@ -397,3 +397,185 @@ form input:focus {
     font-size: 1.3rem;
   }
 }
+
+/* =========================
+   MODIFICATION: Modal personnalisée pour remplacer les alert()
+   Cette modal affichera les messages au centre de la page Courses avec l’arrière-plan flouté.
+========================= */
+.custom-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-modal.hidden {
+  display: none;
+}
+
+/* =========================
+   MODIFICATION: Arrière-plan flouté de la modal
+   Cet élément assombrit et floute la page lorsque la popup est ouverte.
+========================= */
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(11, 40, 80, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* =========================
+   MODIFICATION: Boîte centrale de la modal
+   Elle contient l’icône, le titre, le message et le bouton OK.
+========================= */
+.modal-box {
+  position: relative;
+
+  width: 90%;
+  max-width: 430px;
+
+  background: white;
+  border-radius: 18px;
+
+  padding: 2rem;
+
+  text-align: center;
+
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+
+  animation: modalFadeIn 0.25s ease;
+}
+
+/* =========================
+   MODIFICATION: Icône de la modal
+   L’icône change selon le type du message: info, success, error ou warning.
+========================= */
+.modal-icon {
+  width: 58px;
+  height: 58px;
+
+  margin: 0 auto 1rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: #eaf3ff;
+
+  font-size: 1.8rem;
+}
+
+/* =========================
+   MODIFICATION: Titre de la modal
+   Le titre utilise la couleur principale du projet BUW.
+========================= */
+.modal-box h2 {
+  margin: 0 0 0.8rem;
+
+  color: #0b2850;
+  font-size: 1.4rem;
+}
+
+/* =========================
+   MODIFICATION: Texte de la modal
+   white-space: pre-line permet d’afficher correctement les retours à la ligne si besoin.
+========================= */
+.modal-box p {
+  margin: 0;
+
+  color: #374151;
+  line-height: 1.5;
+  font-size: 0.95rem;
+
+  white-space: pre-line;
+}
+
+/* =========================
+   MODIFICATION: Bouton OK de la modal
+   Ce bouton ferme la modal et peut lancer une action après validation.
+========================= */
+.modal-box button {
+  margin-top: 1.5rem;
+
+  padding: 0.85rem 1.6rem;
+
+  border: none;
+  border-radius: 10px;
+
+  background: #0b2850;
+  color: white;
+
+  font-weight: 700;
+  cursor: pointer;
+
+  transition:
+    background 0.3s,
+    transform 0.2s;
+}
+
+.modal-box button:hover {
+  background: #163b70;
+  transform: translateY(-2px);
+}
+
+/* =========================
+   MODIFICATION: Couleurs selon le type de message
+   Ces classes permettent de différencier les messages info, succès, erreur et avertissement.
+========================= */
+.modal-box.info .modal-icon {
+  background: #eaf3ff;
+}
+
+.modal-box.success .modal-icon {
+  background: #e7f7ec;
+}
+
+.modal-box.error .modal-icon {
+  background: #fdeaea;
+}
+
+.modal-box.warning .modal-icon {
+  background: #fff7e6;
+}
+
+/* =========================
+   MODIFICATION: Animation d’apparition de la modal
+   La boîte apparaît avec un effet léger et moderne.
+========================= */
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* =========================
+   MODIFICATION: Adaptation mobile de la modal
+   La boîte devient plus compacte sur les petits écrans.
+========================= */
+@media (max-width: 560px) {
+  .modal-box {
+    width: calc(100% - 2rem);
+    padding: 1.5rem;
+  }
+
+  .modal-box h2 {
+    font-size: 1.2rem;
+  }
+
+  .modal-box p {
+    font-size: 0.9rem;
+  }
+}

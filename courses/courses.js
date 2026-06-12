@@ -31,6 +31,80 @@ const requestsBtn = document.getElementById("requestsBtn");
 const chatBtn = document.getElementById("chatBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 
+/* =========================
+   MODIFICATION: Récupération des éléments HTML de la modal personnalisée
+   Cette modal remplace les alert() et les messages classiques du navigateur.
+========================= */
+const customModal = document.getElementById("customModal");
+const modalBox = document.querySelector(".modal-box");
+const modalIcon = document.getElementById("modalIcon");
+const modalTitle = document.getElementById("modalTitle");
+const modalMessage = document.getElementById("modalMessage");
+const modalCloseBtn = document.getElementById("modalCloseBtn");
+
+/* =========================
+   MODIFICATION: Fonction pour afficher une modal personnalisée
+   Le callback permet d’exécuter une action seulement après le clic sur OK.
+========================= */
+function showModal(type, title, message, callback = null) {
+  if (
+    !customModal ||
+    !modalBox ||
+    !modalIcon ||
+    !modalTitle ||
+    !modalMessage ||
+    !modalCloseBtn
+  ) {
+    console.error("Modal elements are missing.");
+    console.error(`${title}: ${message}`);
+    return;
+  }
+
+  const icons = {
+    info: "ℹ️",
+    success: "✅",
+    error: "❌",
+    warning: "⚠️",
+  };
+
+  modalBox.className = `modal-box ${type}`;
+  modalIcon.textContent = icons[type] || "ℹ️";
+  modalTitle.textContent = title;
+  modalMessage.textContent = message;
+
+  customModal.classList.remove("hidden");
+
+  modalCloseBtn.onclick = () => {
+    closeModal();
+
+    if (typeof callback === "function") {
+      callback();
+    }
+  };
+}
+
+/* =========================
+   MODIFICATION: Fonction pour fermer la modal personnalisée
+   Elle cache simplement la popup.
+========================= */
+function closeModal() {
+  if (customModal) {
+    customModal.classList.add("hidden");
+  }
+}
+
+/* =========================
+   MODIFICATION: Fermeture de la modal en cliquant sur l’arrière-plan flouté
+   L’utilisateur peut fermer les messages simples en cliquant derrière.
+========================= */
+if (customModal) {
+  customModal.addEventListener("click", (event) => {
+    if (event.target.classList.contains("modal-backdrop")) {
+      closeModal();
+    }
+  });
+}
+
 let currentUser = null;
 let courses = [];
 
@@ -74,7 +148,7 @@ function createCourseId(course) {
   const normalizedCourse = normalizeCourse(course);
 
   return `${normalizeText(normalizedCourse.name)}_${normalizeText(
-    normalizedCourse.semester
+    normalizedCourse.semester,
   )}_${normalizeText(normalizedCourse.faculty)}`;
 }
 
@@ -95,7 +169,7 @@ async function loadCoursesFromFirebase() {
         activeCourses: [],
         createdAt: serverTimestamp(),
       },
-      { merge: true }
+      { merge: true },
     );
 
     courses = [];
@@ -141,20 +215,36 @@ function createCourseCard(course, index) {
     confirmBtn.style.display = "block";
   });
 
+  /* =========================
+   MODIFICATION: Suppression du confirm() classique
+   Le premier clic sur X affiche déjà le bouton Delete.
+   Le clic sur Delete confirme directement la suppression du cours.
+========================= */
   confirmBtn.addEventListener("click", async () => {
-    const confirmed = confirm("Möchtest du diesen Kurs wirklich löschen?");
+    try {
+      courses.splice(index, 1);
 
-    if (!confirmed) {
+      await saveCoursesToFirebase();
+
+      renderCourses();
+
+      showModal(
+        "success",
+        "Kurs gelöscht",
+        "Der Kurs wurde erfolgreich gelöscht.",
+      );
+    } catch (error) {
+      console.error(error);
+
+      showModal(
+        "error",
+        "Löschen fehlgeschlagen",
+        "Der Kurs konnte nicht gelöscht werden. Bitte versuche es erneut.",
+      );
+
       card.classList.remove("blur");
       confirmBtn.style.display = "none";
-      return;
     }
-
-    courses.splice(index, 1);
-
-    await saveCoursesToFirebase();
-
-    renderCourses();
   });
 
   return card;
@@ -184,7 +274,7 @@ function renderFilteredCourses(list) {
 
   list.forEach((course) => {
     const realIndex = courses.findIndex(
-      (item) => createCourseId(item) === createCourseId(course)
+      (item) => createCourseId(item) === createCourseId(course),
     );
 
     courseList.appendChild(createCourseCard(course, realIndex));
@@ -204,17 +294,35 @@ form.addEventListener("submit", async (event) => {
     faculty: form.faculty.value,
   };
 
+  /* =========================
+   MODIFICATION: Remplacement de alert() par une modal
+   Ce message s’affiche si l’utilisateur n’a pas rempli tous les champs.
+========================= */
   if (!newCourse.name || !newCourse.semester || !newCourse.faculty) {
-    alert("Bitte fülle alle Felder aus.");
+    showModal(
+      "warning",
+      "Pflichtfelder fehlen",
+      "Bitte fülle alle Felder aus.",
+    );
+
     return;
   }
 
   const alreadyExists = courses.some(
-    (course) => createCourseId(course) === createCourseId(newCourse)
+    (course) => createCourseId(course) === createCourseId(newCourse),
   );
 
+  /* =========================
+   MODIFICATION: Remplacement de alert() par une modal
+   Ce message s’affiche si le cours existe déjà dans la liste.
+========================= */
   if (alreadyExists) {
-    alert("Dieser Kurs wurde bereits hinzugefügt.");
+    showModal(
+      "info",
+      "Kurs bereits vorhanden",
+      "Dieser Kurs wurde bereits hinzugefügt.",
+    );
+
     return;
   }
 
@@ -229,9 +337,27 @@ form.addEventListener("submit", async (event) => {
     form.reset();
 
     renderCourses();
+
+    /* =========================
+   MODIFICATION: Message de succès après ajout d’un cours
+   L’utilisateur reçoit une confirmation visuelle après l’enregistrement.
+========================= */
+    showModal(
+      "success",
+      "Kurs hinzugefügt",
+      "Der Kurs wurde erfolgreich hinzugefügt.",
+    );
   } catch (error) {
     console.error(error);
-    alert("Kurs konnte nicht gespeichert werden.");
+    /* =========================
+   MODIFICATION: Remplacement de alert() par une modal d’erreur
+   Ce message s’affiche si Firestore ne peut pas enregistrer le cours.
+========================= */
+    showModal(
+      "error",
+      "Speichern fehlgeschlagen",
+      "Kurs konnte nicht gespeichert werden.",
+    );
   } finally {
     addCourseBtn.disabled = false;
     addCourseBtn.textContent = "Kurs hinzufügen";
@@ -301,7 +427,15 @@ if (logoutBtn) {
       window.location.href = "../Login/login.html";
     } catch (error) {
       console.error(error);
-      alert("Abmeldung fehlgeschlagen.");
+      /* =========================
+   MODIFICATION: Remplacement de alert() par une modal d’erreur
+   Ce message s’affiche si la déconnexion échoue.
+========================= */
+      showModal(
+        "error",
+        "Abmeldung fehlgeschlagen",
+        "Du konntest nicht abgemeldet werden. Bitte versuche es erneut.",
+      );
     }
   });
 }
@@ -311,8 +445,20 @@ if (logoutBtn) {
 ========================= */
 
 onAuthStateChanged(auth, async (user) => {
+  /* =========================
+   MODIFICATION: Message avant redirection si l’utilisateur n’est pas connecté
+   La redirection vers Login se fait seulement après le clic sur OK.
+========================= */
   if (!user) {
-    window.location.href = "../Login/login.html";
+    showModal(
+      "warning",
+      "Nicht angemeldet",
+      "Bitte melde dich zuerst an.",
+      () => {
+        window.location.href = "../Login/login.html";
+      },
+    );
+
     return;
   }
 
@@ -323,6 +469,14 @@ onAuthStateChanged(auth, async (user) => {
     renderCourses();
   } catch (error) {
     console.error(error);
-    alert("Kurse konnten nicht geladen werden.");
+    /* =========================
+   MODIFICATION: Remplacement de alert() par une modal d’erreur
+   Ce message s’affiche si les cours ne peuvent pas être chargés depuis Firestore.
+========================= */
+    showModal(
+      "error",
+      "Laden fehlgeschlagen",
+      "Kurse konnten nicht geladen werden.",
+    );
   }
 });

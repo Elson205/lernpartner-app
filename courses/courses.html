@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
@@ -138,6 +138,25 @@
         </form>
       </section>
     </main>
+
+    <!-- =========================
+         MODIFICATION: Ajout de la modal personnalisée pour remplacer les alert()
+         Cette modal affichera les messages de succès, d'erreur, d'information ou d'avertissement.
+         Elle sera utilisée dans courses.js avec showModal().
+    ========================= -->
+    <div id="customModal" class="custom-modal hidden">
+      <div class="modal-backdrop"></div>
+
+      <div class="modal-box">
+        <div id="modalIcon" class="modal-icon">ℹ️</div>
+
+        <h2 id="modalTitle">Hinweis</h2>
+
+        <p id="modalMessage">Nachricht...</p>
+
+        <button type="button" id="modalCloseBtn">OK</button>
+      </div>
+    </div>
 
     <script type="module" src="courses.js"></script>
   </body>
