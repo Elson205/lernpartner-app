@@ -111,7 +111,7 @@ function createReceivedCard(requestId, sender, senderId) {
     );
 
     alert("Anfrage akzeptiert ✅");
-    window.location.href = "../Chat/chat.html";
+    window.location.href = `../Chat/chat.html?chatId=${encodeURIComponent(chatId)}`;
   });
 
   card.querySelector(".reject-btn").addEventListener("click", async () => {
