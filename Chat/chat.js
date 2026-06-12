@@ -82,6 +82,9 @@ let activeChatId = null;
 let activePartner = null;
 let attachedFile = null;
 
+const urlParams = new URLSearchParams(window.location.search);
+let pendingChatIdFromUrl = urlParams.get("chatId");
+
 let unsubscribeChats = null;
 let unsubscribeMessages = null;
 
@@ -462,21 +465,45 @@ function subscribeToChats() {
 
   const chatsQuery = query(
     collection(db, "chats"),
-    where("participants", "array-contains", currentUser.uid),
-    orderBy("lastMessageAt", "desc"),
+    where("participants", "array-contains", currentUser.uid)
   );
 
   unsubscribeChats = onSnapshot(
     chatsQuery,
     async (snapshot) => {
-      const chatDocs = snapshot.docs.map((chatDocument) => ({
-        id: chatDocument.id,
-        ...chatDocument.data(),
-      }));
+      const chatDocs = snapshot.docs
+        .map((chatDocument) => ({
+          id: chatDocument.id,
+          ...chatDocument.data(),
+        }))
+        .sort((a, b) => {
+          const dateA = a.lastMessageAt?.toMillis
+            ? a.lastMessageAt.toMillis()
+            : 0;
+
+          const dateB = b.lastMessageAt?.toMillis
+            ? b.lastMessageAt.toMillis()
+            : 0;
+
+          return dateB - dateA;
+        });
 
       chats = await enrichChatsWithPartnerData(chatDocs);
 
       renderContacts();
+
+      if (pendingChatIdFromUrl) {
+        const requestedChat = chats.find(
+          (chat) => chat.id === pendingChatIdFromUrl
+        );
+
+        if (requestedChat) {
+          selectChat(requestedChat.id);
+          openMobileChat();
+          pendingChatIdFromUrl = null;
+          return;
+        }
+      }
 
       if (!activeChatId && chats.length > 0 && !isMobile()) {
         selectChat(chats[0].id);
@@ -496,7 +523,7 @@ function subscribeToChats() {
       console.error(error);
       contactsList.innerHTML =
         '<p class="empty-message contacts-empty">Chats konnten nicht geladen werden.</p>';
-    },
+    }
   );
 }
 
