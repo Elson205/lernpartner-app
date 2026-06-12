@@ -35,8 +35,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// Desactivation temporaire du stockage.
-// Plus tard apres etre passe a Blaze on pourra de nouveau le reativer
+// Modification : Firebase Storage reste désactivé tant que le projet n'est pas passé au plan Blaze.
 const STORAGE_ENABLED = false;
 
 const chatPage = document.getElementById("chatPage");
@@ -56,6 +55,10 @@ const messageInput = document.getElementById("messageInput");
 const fileInput = document.getElementById("fileInput");
 const filePreview = document.getElementById("filePreview");
 
+// Modification : récupération du bouton d'envoi et du message de collaboration terminée.
+const sendMessageBtn = document.getElementById("sendMessageBtn");
+const endedChatNotice = document.getElementById("endedChatNotice");
+
 const profilePhoto = document.getElementById("profilePhoto");
 const profileName = document.getElementById("profileName");
 const profileFaculty = document.getElementById("profileFaculty");
@@ -63,6 +66,7 @@ const profileFachbereich = document.getElementById("profileFachbereich");
 const profileSemester = document.getElementById("profileSemester");
 const profileNationality = document.getElementById("profileNationality");
 const profileLastSeen = document.getElementById("profileLastSeen");
+const requestStatus = document.getElementById("requestStatus");
 
 const profileBtn = document.getElementById("profileBtn");
 const coursesBtn = document.getElementById("coursesBtn");
@@ -76,13 +80,24 @@ const photoModalImage = document.getElementById("photoModalImage");
 const photoModalName = document.getElementById("photoModalName");
 const closePhotoModal = document.getElementById("closePhotoModal");
 
+// Modification : éléments de la modal personnalisée.
+const customModal = document.getElementById("customModal");
+const modalBox = customModal?.querySelector(".modal-box");
+const modalIcon = document.getElementById("modalIcon");
+const modalTitle = document.getElementById("modalTitle");
+const modalMessage = document.getElementById("modalMessage");
+const modalCloseBtn = document.getElementById("modalCloseBtn");
+
 let currentUser = null;
 let chats = [];
 let activeChatId = null;
+let activeChat = null;
 let activePartner = null;
 let attachedFile = null;
 
 const urlParams = new URLSearchParams(window.location.search);
+
+// Modification : chatId reçu depuis Requests après acceptation d'une demande.
 let pendingChatIdFromUrl = urlParams.get("chatId");
 
 let unsubscribeChats = null;
@@ -102,6 +117,60 @@ const ALLOWED_DOCUMENT_TYPES = [
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ];
+
+// Modification : fonction de fermeture de la modal personnalisée.
+function closeModal() {
+  if (!customModal) return;
+  customModal.classList.add("hidden");
+}
+
+// Modification : fonction showModal pour remplacer les alert().
+// Important : si les éléments HTML de la modal sont absents, le callback n'est pas exécuté automatiquement.
+function showModal(type, title, message, callback = null) {
+  if (
+    !customModal ||
+    !modalBox ||
+    !modalIcon ||
+    !modalTitle ||
+    !modalMessage ||
+    !modalCloseBtn
+  ) {
+    console.error("Modal elements are missing.");
+    console.error(`${title}: ${message}`);
+    return;
+  }
+
+  const icons = {
+    info: "ℹ️",
+    success: "✅",
+    error: "❌",
+    warning: "⚠️",
+  };
+
+  modalBox.className = `modal-box ${type}`;
+  modalIcon.textContent = icons[type] || "ℹ️";
+  modalTitle.textContent = title;
+  modalMessage.textContent = message;
+
+  customModal.classList.remove("hidden");
+
+  modalCloseBtn.onclick = () => {
+    closeModal();
+
+    if (typeof callback === "function") {
+      callback();
+    }
+  };
+}
+
+// Modification : fermeture de la modal avec clic sur le fond.
+if (customModal) {
+  customModal.addEventListener("click", (event) => {
+    if (event.target.classList.contains("modal-backdrop")) {
+      closeModal();
+    }
+  });
+}
 
 function isMobile() {
   return window.matchMedia("(max-width: 760px)").matches;
@@ -149,6 +218,58 @@ function formatTime(timestamp) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+// Modification : vérifie si la Lernpartnerschaft est terminée.
+function isChatEnded(chat) {
+  return chat?.active === false || chat?.requestStatus === "ended";
+}
+
+// Modification : met à jour le badge de statut dans le profil de droite.
+function renderRequestStatus(chat) {
+  if (!requestStatus) return;
+
+  requestStatus.classList.remove("confirmed", "ended");
+
+  if (isChatEnded(chat)) {
+    requestStatus.textContent = "Lernpartnerschaft beendet";
+    requestStatus.classList.add("ended");
+    return;
+  }
+
+  requestStatus.textContent = "Lernpartnerschaft bestätigt";
+  requestStatus.classList.add("confirmed");
+}
+
+// Modification : bloque ou débloque le formulaire selon l'état du chat.
+function updateMessageFormState(chat) {
+  const ended = isChatEnded(chat);
+  const hasSelectedChat = Boolean(chat);
+
+  if (endedChatNotice) {
+    endedChatNotice.classList.toggle("hidden", !ended);
+  }
+
+  messageInput.disabled = !hasSelectedChat || ended;
+  fileInput.disabled = !hasSelectedChat || ended;
+
+  if (sendMessageBtn) {
+    sendMessageBtn.disabled = !hasSelectedChat || ended;
+  }
+
+  messageForm.classList.toggle("disabled", !hasSelectedChat || ended);
+
+  if (!hasSelectedChat) {
+    messageInput.placeholder = "Wähle zuerst einen Chat aus.";
+    return;
+  }
+
+  if (ended) {
+    messageInput.placeholder = "Diese Lernpartnerschaft wurde beendet.";
+    return;
+  }
+
+  messageInput.placeholder = "Textnachricht senden...";
 }
 
 function getFileCategory(file) {
@@ -207,6 +328,10 @@ function getFileIcon(fileType) {
 }
 
 function renderEmptyChat() {
+  activeChatId = null;
+  activeChat = null;
+  activePartner = null;
+
   chatPartnerName.textContent = "Chat auswählen";
   chatPartnerStatus.textContent = "-";
   activeText.textContent = "Offline";
@@ -222,6 +347,9 @@ function renderEmptyChat() {
   profileSemester.textContent = "-";
   profileNationality.textContent = "-";
   profileLastSeen.textContent = "-";
+
+  renderRequestStatus(null);
+  updateMessageFormState(null);
 }
 
 async function getUserData(uid) {
@@ -235,6 +363,7 @@ async function getUserData(uid) {
       faculty: "-",
       fachbereich: "-",
       semester: "-",
+      nationality: "-",
       online: false,
       lastSeen: null,
     };
@@ -312,6 +441,7 @@ function renderContacts(list = chats) {
 
       <span class="contact-time">${lastMessageTime}</span>
     `;
+
     const avatar = item.querySelector(".contact-avatar");
 
     avatar.addEventListener("click", (event) => {
@@ -370,6 +500,7 @@ photoModal.addEventListener("click", (event) => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closePhotoModalWindow();
+    closeModal();
   }
 });
 
@@ -388,7 +519,7 @@ function renderProfilePanel(partner) {
   profilePhoto.onclick = () => {
     openPhotoModal(
       partner.photoURL || "../user-placeholder.jpg",
-      partner.fullname || "Kontakt"
+      partner.fullname || "Kontakt",
     );
   };
 }
@@ -465,7 +596,7 @@ function subscribeToChats() {
 
   const chatsQuery = query(
     collection(db, "chats"),
-    where("participants", "array-contains", currentUser.uid)
+    where("participants", "array-contains", currentUser.uid),
   );
 
   unsubscribeChats = onSnapshot(
@@ -492,9 +623,10 @@ function subscribeToChats() {
 
       renderContacts();
 
+      // Modification : ouverture automatique du chat reçu dans l'URL.
       if (pendingChatIdFromUrl) {
         const requestedChat = chats.find(
-          (chat) => chat.id === pendingChatIdFromUrl
+          (chat) => chat.id === pendingChatIdFromUrl,
         );
 
         if (requestedChat) {
@@ -507,15 +639,24 @@ function subscribeToChats() {
 
       if (!activeChatId && chats.length > 0 && !isMobile()) {
         selectChat(chats[0].id);
+        return;
       }
 
+      // Modification : si le chat actif change dans Firestore, on met à jour son état.
       if (activeChatId) {
-        const activeChat = chats.find((chat) => chat.id === activeChatId);
+        const updatedActiveChat = chats.find((chat) => chat.id === activeChatId);
 
-        if (activeChat) {
-          activePartner = activeChat.partner;
+        if (updatedActiveChat) {
+          activeChat = updatedActiveChat;
+          activePartner = updatedActiveChat.partner;
+
           renderChatHeader(activePartner);
           renderProfilePanel(activePartner);
+          renderRequestStatus(activeChat);
+          updateMessageFormState(activeChat);
+          renderContacts();
+        } else {
+          renderEmptyChat();
         }
       }
     },
@@ -523,7 +664,13 @@ function subscribeToChats() {
       console.error(error);
       contactsList.innerHTML =
         '<p class="empty-message contacts-empty">Chats konnten nicht geladen werden.</p>';
-    }
+
+      showModal(
+        "error",
+        "Fehler",
+        "Chats konnten nicht geladen werden.",
+      );
+    },
   );
 }
 
@@ -553,6 +700,12 @@ function subscribeToMessages(chatId) {
       console.error(error);
       messagesList.innerHTML =
         '<p class="empty-message">Nachrichten konnten nicht geladen werden.</p>';
+
+      showModal(
+        "error",
+        "Fehler",
+        "Nachrichten konnten nicht geladen werden.",
+      );
     },
   );
 }
@@ -590,6 +743,7 @@ async function selectChat(chatId) {
     return;
   }
 
+  activeChat = chat;
   activePartner = chat.partner;
 
   attachedFile = null;
@@ -599,6 +753,11 @@ async function selectChat(chatId) {
   renderContacts();
   renderChatHeader(activePartner);
   renderProfilePanel(activePartner);
+
+  // Modification : affichage du statut et blocage éventuel du formulaire.
+  renderRequestStatus(activeChat);
+  updateMessageFormState(activeChat);
+
   subscribeToMessages(chatId);
 }
 
@@ -612,8 +771,22 @@ async function uploadAttachedFile(chatId, file) {
 }
 
 async function sendMessage() {
-  if (!activeChatId || !activePartner) {
-    alert("Bitte wähle zuerst einen Chat aus.");
+  if (!activeChatId || !activePartner || !activeChat) {
+    showModal(
+      "info",
+      "Kein Chat ausgewählt",
+      "Bitte wähle zuerst einen Chat aus.",
+    );
+    return;
+  }
+
+  // Modification : empêche l'envoi si la collaboration est terminée.
+  if (isChatEnded(activeChat)) {
+    showModal(
+      "info",
+      "Lernpartnerschaft beendet",
+      "Diese Lernpartnerschaft wurde beendet. Du kannst keine neuen Nachrichten mehr senden.",
+    );
     return;
   }
 
@@ -627,24 +800,12 @@ async function sendMessage() {
   let fileName = "";
   let fileType = "";
 
-  //Modifier cette partie plus tard apres l'ajout du Storage (Supprimer le attachedFile du sessous et ajouter celui en commentaire)
-
-  /*if (attachedFile) {
-    const validation = validateFile(attachedFile);
-
-    if (!validation.ok) {
-      alert(validation.message);
-      return;
-    }
-
-    fileURL = await uploadAttachedFile(activeChatId, attachedFile);
-    fileName = attachedFile.name;
-    fileType = attachedFile.type;
-  }*/
-
+  // Modification : les pièces jointes restent bloquées tant que Firebase Storage n'est pas activé.
   if (attachedFile) {
     if (!STORAGE_ENABLED) {
-      alert(
+      showModal(
+        "info",
+        "Dateianhänge deaktiviert",
         "Dateianhänge sind momentan deaktiviert. Firebase Storage ist noch nicht aktiviert.",
       );
       return;
@@ -653,7 +814,7 @@ async function sendMessage() {
     const validation = validateFile(attachedFile);
 
     if (!validation.ok) {
-      alert(validation.message);
+      showModal("warning", "Datei nicht erlaubt", validation.message);
       return;
     }
 
@@ -707,14 +868,24 @@ messageForm.addEventListener("submit", async (event) => {
     await sendMessage();
   } catch (error) {
     console.error(error);
-    alert("Nachricht konnte nicht gesendet werden.");
+
+    showModal(
+      "error",
+      "Fehler",
+      "Nachricht konnte nicht gesendet werden.",
+    );
   }
 });
 
 fileInput.addEventListener("change", () => {
-  // Affichage d'un message d'alerte pour preciser que le Storage n'est pas encore disponible
+  // Modification : remplacement de alert() par showModal().
   if (!STORAGE_ENABLED) {
-    alert("Dateianhänge sind momentan deaktiviert.");
+    showModal(
+      "info",
+      "Dateianhänge deaktiviert",
+      "Dateianhänge sind momentan deaktiviert.",
+    );
+
     fileInput.value = "";
     attachedFile = null;
     filePreview.textContent = "";
@@ -731,7 +902,8 @@ fileInput.addEventListener("change", () => {
   const validation = validateFile(attachedFile);
 
   if (!validation.ok) {
-    alert(validation.message);
+    showModal("warning", "Datei nicht erlaubt", validation.message);
+
     fileInput.value = "";
     attachedFile = null;
     filePreview.textContent = "";
@@ -765,9 +937,19 @@ window.addEventListener("beforeunload", () => {
 });
 
 logoutBtn.addEventListener("click", async () => {
-  await setUserOnlineStatus(false);
-  await signOut(auth);
-  window.location.href = "../Login/login.html";
+  try {
+    await setUserOnlineStatus(false);
+    await signOut(auth);
+    window.location.href = "../Login/login.html";
+  } catch (error) {
+    console.error(error);
+
+    showModal(
+      "error",
+      "Fehler",
+      "Abmeldung fehlgeschlagen. Bitte versuche es erneut.",
+    );
+  }
 });
 
 if (profileBtn) {
@@ -802,7 +984,15 @@ if (chatBtn) {
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
-    window.location.href = "../Login/login.html";
+    showModal(
+      "warning",
+      "Nicht angemeldet",
+      "Bitte melde dich zuerst an.",
+      () => {
+        window.location.href = "../Login/login.html";
+      },
+    );
+
     return;
   }
 
@@ -814,6 +1004,11 @@ onAuthStateChanged(auth, async (user) => {
     subscribeToChats();
   } catch (error) {
     console.error(error);
-    alert("Chat konnte nicht initialisiert werden.");
+
+    showModal(
+      "error",
+      "Fehler",
+      "Chat konnte nicht initialisiert werden.",
+    );
   }
 });

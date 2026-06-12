@@ -85,6 +85,11 @@
           <p class="empty-message">Wähle einen Kontakt aus.</p>
         </div>
 
+        <!-- Modification : message permanent affiché quand la Lernpartnerschaft est terminée -->
+        <div id="endedChatNotice" class="ended-chat-notice hidden">
+          Diese Lernpartnerschaft wurde beendet.
+        </div>
+
         <form id="messageForm" class="message-form">
           <label for="fileInput" class="attach-btn" title="Datei anhängen">
             📎
@@ -104,7 +109,10 @@
             autocomplete="off"
           />
 
-          <button type="submit" class="send-btn">Senden</button>
+          <!-- Modification : ajout d'un id au bouton d'envoi pour pouvoir le désactiver depuis chat.js -->
+          <button type="submit" id="sendMessageBtn" class="send-btn">
+            Senden
+          </button>
         </form>
 
         <p id="filePreview" class="file-preview"></p>
@@ -152,6 +160,21 @@
         </div>
       </aside>
     </main>
+
+    <!-- Modification : modal personnalisée pour remplacer les alert() dans la page Chat -->
+    <div id="customModal" class="custom-modal hidden">
+      <div class="modal-backdrop"></div>
+
+      <div class="modal-box">
+        <div id="modalIcon" class="modal-icon">ℹ️</div>
+
+        <h2 id="modalTitle">Hinweis</h2>
+
+        <p id="modalMessage">Nachricht...</p>
+
+        <button type="button" id="modalCloseBtn">OK</button>
+      </div>
+    </div>
 
     <div id="photoModal" class="photo-modal">
       <div class="photo-modal-content">

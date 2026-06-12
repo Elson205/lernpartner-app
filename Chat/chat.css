@@ -641,3 +641,142 @@ header {
   }
 }
 
+/* =========================
+   MODIFICATION: MESSAGE CHAT TERMINÉ
+   Ce bloc affiche un message permanent quand la Lernpartnerschaft est terminée.
+========================= */
+.ended-chat-notice {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  background: #fff7ed;
+  color: #9a3412;
+  border-top: 1px solid #fed7aa;
+  border-bottom: 1px solid #fed7aa;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ended-chat-notice.hidden {
+  display: none;
+}
+
+/* =========================
+   MODIFICATION: FORMULAIRE DÉSACTIVÉ
+   Ces styles montrent clairement que l'envoi de message est bloqué.
+========================= */
+.message-form.disabled {
+  background: #f3f4f6;
+  opacity: 0.75;
+}
+
+.message-form.disabled input[type="text"] {
+  background: #e5e7eb;
+  cursor: not-allowed;
+}
+
+.message-form.disabled .send-btn,
+.message-form.disabled .attach-btn {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.send-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* =========================
+   MODIFICATION: STATUT TERMINÉ
+   Ce badge affiche correctement une collaboration terminée.
+========================= */
+.request-status.ended {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* =========================
+   MODIFICATION: MODAL PERSONNALISÉE
+   Cette modal remplace les alert() de navigateur.
+========================= */
+.custom-modal.hidden {
+  display: none;
+}
+
+.custom-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.modal-box {
+  position: relative;
+  width: min(90vw, 430px);
+  margin: 15vh auto 0;
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  text-align: center;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+  animation: modalPop 0.2s ease;
+}
+
+.modal-icon {
+  font-size: 2.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.modal-box h2 {
+  margin: 0 0 0.7rem;
+  color: #0b2850;
+}
+
+.modal-box p {
+  margin: 0 0 1.2rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.modal-box button {
+  background: #0b2850;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 1.4rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modal-box.success {
+  border-top: 6px solid #22c55e;
+}
+
+.modal-box.error {
+  border-top: 6px solid #ef4444;
+}
+
+.modal-box.warning {
+  border-top: 6px solid #f59e0b;
+}
+
+.modal-box.info {
+  border-top: 6px solid #3b82f6;
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: translateY(-15px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
