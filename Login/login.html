@@ -1,52 +1,60 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>Anmelden - BUW</title>
+    <title>Anmelden - BUW</title>
 
-  <link rel="stylesheet" href="login.css" />
-</head>
+    <link rel="stylesheet" href="login.css" />
+  </head>
 
-<body>
-  <header>
-    <div class="logo">BUW</div>
-  </header>
+  <body>
+    <header>
+      <div class="logo">BUW</div>
+    </header>
 
-  <main class="login-page">
-    <section class="login-card">
-      <h1>Anmelden</h1>
+    <main class="login-page">
+      <section class="login-card">
+        <h1>Anmelden</h1>
 
-      <form id="loginForm">
-        <label for="email">University Email</label>
-        <input
-          type="email"
-          id="email"
-          placeholder="beispiel@uni-wuppertal.de"
-          required
-        />
+        <form id="loginForm">
+          <label for="email">University Email</label>
+          <input
+            type="email"
+            id="email"
+            placeholder="beispiel@uni-wuppertal.de"
+            required
+          />
 
-        <label for="password">Passwort</label>
-        <input
-          type="password"
-          id="password"
-          placeholder="Passwort"
-          required
-        />
+          <label for="password">Passwort</label>
+          <input
+            type="password"
+            id="password"
+            placeholder="Passwort"
+            required
+          />
 
-        <button type="submit" id="loginBtn">
-          Anmelden
-        </button>
-      </form>
+          <!-- Message intégré dans la page -->
+          <div id="formMessage" class="form-message"></div>
 
-      <p>
-        Noch kein Konto?
-        <a href="../Signup/signup.html">Registrieren</a>
-      </p>
-    </section>
-  </main>
+          <button
+            type="button"
+            id="resendVerificationBtn"
+            class="secondary-btn hidden"
+          >
+            Bestätigungslink erneut senden
+          </button>
+          <button type="submit" id="loginBtn">Anmelden</button>
+        </form>
 
-  <script type="module" src="login.js"></script>
-</body>
+        <p>
+          Noch kein Konto?
+          <a href="../Signup/signup.html">Registrieren</a>
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="login.js"></script>
+  </body>
 </html>
