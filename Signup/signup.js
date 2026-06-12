@@ -3,6 +3,8 @@ import { app } from "../firebase-config.js";
 import {
   getAuth,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
+  signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 import {
@@ -13,9 +15,12 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 const auth = getAuth(app);
+auth.languageCode = "de";
+
 const db = getFirestore(app);
 
 const form = document.getElementById("registrationForm");
+const formMessage = document.getElementById("formMessage");
 const submitBtn = document.getElementById("submitBtn");
 
 const fullnameInput = document.getElementById("fullname");
@@ -23,26 +28,64 @@ const emailInput = document.getElementById("email");
 const passwordInput = document.getElementById("password");
 const confirmPasswordInput = document.getElementById("confirmPassword");
 
+/* =========================
+   MESSAGES DE VALIDATION
+========================= */
+
 function setValid(id, message) {
   const element = document.getElementById(id);
+
+  if (!element) return;
+
   element.innerHTML = message;
   element.className = "valid";
 }
 
 function setInvalid(id, message) {
   const element = document.getElementById(id);
+
+  if (!element) return;
+
   element.innerHTML = message;
   element.className = "invalid";
 }
 
 function setNeutral(id, message) {
   const element = document.getElementById(id);
+
+  if (!element) return;
+
   element.innerHTML = message;
   element.className = "neutral";
 }
 
+function showMessage(type, message) {
+  if (!formMessage) return;
+
+  formMessage.className = `form-message ${type}`;
+  formMessage.textContent = message;
+}
+
+function clearMessage() {
+  if (!formMessage) return;
+
+  formMessage.className = "form-message";
+  formMessage.textContent = "";
+}
+
+/* =========================
+   VALIDATION
+========================= */
+
+// Pendant le développement, Gmail est autorisé pour tester la vérification email.
+// Plus tard, pour la vraie version, garde uniquement @uni-wuppertal.de.
 function isUniversityEmail(email) {
-  return email.endsWith("@uni-wuppertal.de");
+  const cleanedEmail = email.toLowerCase().trim();
+
+  return (
+    cleanedEmail.endsWith("@uni-wuppertal.de") ||
+    cleanedEmail.endsWith("@gmail.com")
+  );
 }
 
 function isPasswordValid(password) {
@@ -71,9 +114,12 @@ function checkFormValid() {
   }
 
   if (emailValid) {
-    setValid("check-email", "✅ Universitäts Email gültig");
+    setValid("check-email", "✅ Uni-E-Mail-Adresse erkannt");
   } else {
-    setInvalid("check-email", "❌ Email muss mit @uni-wuppertal.de enden");
+    setInvalid(
+      "check-email",
+      "❌ Bitte nutze deine Uni-E-Mail-Adresse. Für Tests ist auch Gmail erlaubt."
+    );
   }
 
   if (passwordValid) {
@@ -94,15 +140,28 @@ function checkFormValid() {
     passwordValid &&
     confirmPasswordValid
   );
+
+  return (
+    fullnameValid &&
+    emailValid &&
+    passwordValid &&
+    confirmPasswordValid
+  );
 }
+
+/* =========================
+   REGISTRATION
+========================= */
 
 form.addEventListener("submit", async function (event) {
   event.preventDefault();
 
-  checkFormValid();
+  clearMessage();
 
-  if (submitBtn.disabled) {
-    alert("Bitte fülle zuerst alle Pflichtfelder korrekt aus.");
+  const formIsValid = checkFormValid();
+
+  if (!formIsValid) {
+    showMessage("error", "Bitte fülle zuerst alle Pflichtfelder korrekt aus.");
     return;
   }
 
@@ -117,21 +176,33 @@ form.addEventListener("submit", async function (event) {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
       email,
-      password,
+      password
     );
 
-    const uid = userCredential.user.uid;
+    const user = userCredential.user;
+    const uid = user.uid;
+
+    const loginUrl = new URL("../Login/login.html", window.location.href);
+    loginUrl.searchParams.set("email", email);
+
+    const actionCodeSettings = {
+      url: loginUrl.toString(),
+      handleCodeInApp: false,
+    };
+
+    await sendEmailVerification(user, actionCodeSettings);
 
     await setDoc(doc(db, "users", uid), {
       uid,
       fullname,
       email,
 
-      photoURL: "user-placeholder.jpg",
+      photoURL: "../user-placeholder.jpg",
 
       faculty: "",
       fachbereich: "",
       semester: "",
+      nationality: "",
 
       aboutText: "",
       aboutHTML: "",
@@ -149,21 +220,73 @@ form.addEventListener("submit", async function (event) {
       updatedAt: serverTimestamp(),
     });
 
-    alert("Konto erfolgreich erstellt ✅");
-    window.location.href = "../Profile/profile.html";
+    await signOut(auth);
+
+    showMessage(
+      "success",
+      "Konto erfolgreich erstellt. Bitte bestätige jetzt deine E-Mail-Adresse. Wir haben dir einen Bestätigungslink gesendet."
+    );
+
+    submitBtn.textContent = "Weiterleitung zur Anmeldung...";
+
+    setTimeout(() => {
+      window.location.href = "../Login/login.html";
+    }, 4000);
   } catch (error) {
-    console.error(error);
+  console.error("Signup error:", error);
+  console.error("Firebase error code:", error.code);
 
-    alert("Registrierung fehlgeschlagen: " + error.message);
+  let errorMessage = "Registrierung fehlgeschlagen. Bitte versuche es erneut.";
 
-    submitBtn.disabled = false;
-    submitBtn.textContent = "Konto erstellen";
+  if (error.code === "auth/email-already-in-use") {
+    errorMessage = "Diese E-Mail-Adresse wird bereits verwendet.";
+  } else if (error.code === "auth/invalid-email") {
+    errorMessage = "Diese E-Mail-Adresse ist ungültig.";
+  } else if (error.code === "auth/weak-password") {
+    errorMessage = "Das Passwort ist zu schwach.";
+  } else if (error.code === "auth/unauthorized-continue-uri") {
+    errorMessage =
+      "Die Weiterleitungsadresse ist in Firebase nicht autorisiert. Bitte füge localhost oder 127.0.0.1 unter Authorized domains hinzu.";
+  } else if (error.code === "auth/invalid-continue-uri") {
+    errorMessage =
+      "Die Weiterleitungsadresse für die E-Mail-Bestätigung ist ungültig.";
+  } else if (error.code === "auth/network-request-failed") {
+    errorMessage =
+      "Netzwerkfehler. Bitte überprüfe deine Internetverbindung.";
+  } else if (error.code === "auth/too-many-requests") {
+    errorMessage =
+      "Zu viele Anfragen. Bitte warte einen Moment und versuche es später erneut.";
   }
+
+  showMessage("error", errorMessage);
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = "Konto erstellen";
+}
 });
 
-fullnameInput.addEventListener("input", checkFormValid);
-emailInput.addEventListener("input", checkFormValid);
-passwordInput.addEventListener("input", checkFormValid);
-confirmPasswordInput.addEventListener("input", checkFormValid);
+/* =========================
+   LIVE VALIDATION
+========================= */
+
+fullnameInput.addEventListener("input", () => {
+  clearMessage();
+  checkFormValid();
+});
+
+emailInput.addEventListener("input", () => {
+  clearMessage();
+  checkFormValid();
+});
+
+passwordInput.addEventListener("input", () => {
+  clearMessage();
+  checkFormValid();
+});
+
+confirmPasswordInput.addEventListener("input", () => {
+  clearMessage();
+  checkFormValid();
+});
 
 checkFormValid();
