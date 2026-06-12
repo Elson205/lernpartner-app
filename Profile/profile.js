@@ -53,6 +53,80 @@ const nationalityInput = document.getElementById("nationalityInput");
 const countrySuggestions = document.getElementById("countrySuggestions");
 
 /* =========================
+   MODIFICATION: Récupération des éléments HTML de la modal personnalisée
+   Cette modal remplace les alert() classiques par une popup au centre de la page.
+========================= */
+const customModal = document.getElementById("customModal");
+const modalBox = document.querySelector(".modal-box");
+const modalIcon = document.getElementById("modalIcon");
+const modalTitle = document.getElementById("modalTitle");
+const modalMessage = document.getElementById("modalMessage");
+const modalCloseBtn = document.getElementById("modalCloseBtn");
+
+/* =========================
+   MODIFICATION: Fonction pour afficher une modal personnalisée
+   Le callback permet d’exécuter une action seulement après le clic sur OK.
+========================= */
+function showModal(type, title, message, callback = null) {
+  if (
+    !customModal ||
+    !modalBox ||
+    !modalIcon ||
+    !modalTitle ||
+    !modalMessage ||
+    !modalCloseBtn
+  ) {
+    console.error("Modal elements are missing.");
+    console.error(`${title}: ${message}`);
+    return;
+  }
+
+  const icons = {
+    info: "ℹ️",
+    success: "✅",
+    error: "❌",
+    warning: "⚠️",
+  };
+
+  modalBox.className = `modal-box ${type}`;
+  modalIcon.textContent = icons[type] || "ℹ️";
+  modalTitle.textContent = title;
+  modalMessage.textContent = message;
+
+  customModal.classList.remove("hidden");
+
+  modalCloseBtn.onclick = () => {
+    closeModal();
+
+    if (typeof callback === "function") {
+      callback();
+    }
+  };
+}
+
+/* =========================
+   MODIFICATION: Fonction pour fermer la modal personnalisée
+   Elle cache la popup après le clic sur OK.
+========================= */
+function closeModal() {
+  if (customModal) {
+    customModal.classList.add("hidden");
+  }
+}
+
+/* =========================
+   MODIFICATION: Fermeture de la modal en cliquant sur l’arrière-plan flouté
+   L’utilisateur peut fermer la popup avec le bouton OK ou en cliquant derrière.
+========================= */
+if (customModal) {
+  customModal.addEventListener("click", (event) => {
+    if (event.target.classList.contains("modal-backdrop")) {
+      closeModal();
+    }
+  });
+}
+
+/* =========================
    NAVIGATION
 ========================= */
 
@@ -242,8 +316,7 @@ function checkProfileValid() {
   const aboutValid = about !== "";
 
   const hasRealPhoto =
-    selectedPhotoFile ||
-    !profilePreview.src.includes("user-placeholder.jpg");
+    selectedPhotoFile || !profilePreview.src.includes("user-placeholder.jpg");
 
   if (hasRealPhoto) {
     setValid("check-photo", "✅ Profilbild ausgewählt");
@@ -341,9 +414,20 @@ async function loadUserProfile() {
   const userRef = doc(db, "users", currentUser.uid);
   const userSnap = await getDoc(userRef);
 
+  /* =========================
+   MODIFICATION: Remplacement de alert() par une modal
+   L’utilisateur est redirigé vers Signup seulement après avoir cliqué sur OK.
+========================= */
   if (!userSnap.exists()) {
-    alert("Profil nicht gefunden. Bitte registriere dich erneut.");
-    window.location.href = "../Signup/signup.html";
+    showModal(
+      "warning",
+      "Profil nicht gefunden",
+      "Profil nicht gefunden. Bitte registriere dich erneut.",
+      () => {
+        window.location.href = "../Signup/signup.html";
+      },
+    );
+
     return;
   }
 
@@ -428,8 +512,17 @@ form.addEventListener("submit", async function (event) {
 
   const isValid = checkProfileValid();
 
+  /* =========================
+   MODIFICATION: Remplacement de alert() par une modal
+   Le message s’affiche au centre si les champs obligatoires ne sont pas remplis.
+========================= */
   if (!isValid) {
-    alert("Bitte fülle zuerst alle Pflichtfelder korrekt aus.");
+    showModal(
+      "warning",
+      "Pflichtfelder fehlen",
+      "Bitte fülle zuerst alle Pflichtfelder korrekt aus.",
+    );
+
     return;
   }
 
@@ -467,12 +560,30 @@ form.addEventListener("submit", async function (event) {
       updatedAt: serverTimestamp(),
     });
 
-    alert("Profil erfolgreich gespeichert ✅");
-    window.location.href = "../Courses/courses.html";
+    /* =========================
+   MODIFICATION: Modal de succès après sauvegarde du profil
+   La redirection vers Courses se fait seulement après le clic sur OK.
+========================= */
+    showModal(
+      "success",
+      "Profil gespeichert",
+      "Dein Profil wurde erfolgreich gespeichert.",
+      () => {
+        window.location.href = "../Courses/courses.html";
+      },
+    );
   } catch (error) {
     console.error(error);
 
-    alert("Profil konnte nicht gespeichert werden: " + error.message);
+    /* =========================
+   MODIFICATION: Remplacement de alert() par une modal d’erreur
+   Le message affiche clairement que la sauvegarde du profil a échoué.
+========================= */
+    showModal(
+      "error",
+      "Speichern fehlgeschlagen",
+      "Profil konnte nicht gespeichert werden: " + error.message,
+    );
 
     submitBtn.textContent = "Profil speichern";
     checkProfileValid();
@@ -543,7 +654,15 @@ if (logoutBtn) {
       window.location.href = "../Login/login.html";
     } catch (error) {
       console.error(error);
-      alert("Abmeldung fehlgeschlagen.");
+      /* =========================
+   MODIFICATION: Remplacement de alert() par une modal d’erreur
+   Ce message s’affiche si la déconnexion échoue.
+========================= */
+      showModal(
+        "error",
+        "Abmeldung fehlgeschlagen",
+        "Du konntest nicht abgemeldet werden. Bitte versuche es erneut.",
+      );
     }
   });
 }
@@ -553,8 +672,20 @@ if (logoutBtn) {
 ========================= */
 
 onAuthStateChanged(auth, async (user) => {
+  /* =========================
+   MODIFICATION: Message avant redirection si l’utilisateur n’est pas connecté
+   La redirection vers Login se fait seulement après le clic sur OK.
+========================= */
   if (!user) {
-    window.location.href = "../Login/login.html";
+    showModal(
+      "warning",
+      "Nicht angemeldet",
+      "Bitte melde dich zuerst an.",
+      () => {
+        window.location.href = "../Login/login.html";
+      },
+    );
+
     return;
   }
 

@@ -217,6 +217,25 @@
       </div>
     </div>
 
+    <!-- =========================
+     MODIFICATION: Ajout de la modal personnalisée pour remplacer les alert()
+     Cette modal affichera les messages de succès, d'erreur, d'information ou d'avertissement.
+     Elle est séparée de la modal photo déjà existante.
+========================= -->
+    <div id="customModal" class="custom-modal hidden">
+      <div class="modal-backdrop"></div>
+
+      <div class="modal-box">
+        <div id="modalIcon" class="modal-icon">ℹ️</div>
+
+        <h2 id="modalTitle">Hinweis</h2>
+
+        <p id="modalMessage">Nachricht...</p>
+
+        <button type="button" id="modalCloseBtn">OK</button>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
     <script type="module" src="profile.js"></script>
   </body>
