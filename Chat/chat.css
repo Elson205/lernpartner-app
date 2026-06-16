@@ -892,3 +892,46 @@ header {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* =========================
+   MODIFICATION: ACTIONS SUR LES MESSAGES
+   Ces boutons permettent de copier ou supprimer un message.
+========================= */
+.message-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.message-row:hover .message-actions {
+  opacity: 1;
+}
+
+.message-action-btn {
+  border: none;
+  background: #f3f4f6;
+  color: #374151;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.message-action-btn:hover {
+  background: #e5e7eb;
+}
+
+.message-action-btn.delete {
+  color: #b91c1c;
+}
+
+.message-row.sent .message-actions {
+  justify-content: flex-end;
+}
+
+.message-deleted {
+  font-style: italic;
+  opacity: 0.75;
+}

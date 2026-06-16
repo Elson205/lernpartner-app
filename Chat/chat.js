@@ -530,6 +530,94 @@ function renderProfilePanel(partner) {
   };
 }
 
+/* =========================
+   MODIFICATION: copier le texte d'un message
+   Utilise Clipboard API avec fallback si le navigateur bloque navigator.clipboard.
+========================= */
+async function copyMessageText(text) {
+  if (!text) {
+    showModal("info", "Keine Nachricht", "Dieser Nachrichtentext ist leer.");
+    return;
+  }
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+
+    showModal("success", "Kopiert", "Die Nachricht wurde kopiert.");
+  } catch (error) {
+    console.error(error);
+
+    showModal(
+      "error",
+      "Fehler",
+      "Die Nachricht konnte nicht kopiert werden."
+    );
+  }
+}
+
+/* =========================
+   MODIFICATION: supprimer un message envoyé
+   Le message n'est pas supprimé physiquement, il est marqué comme supprimé.
+========================= */
+async function deleteMessage(messageId, senderId) {
+  if (!activeChatId || !messageId) return;
+
+  if (senderId !== currentUser.uid) {
+    showModal(
+      "warning",
+      "Nicht erlaubt",
+      "Du kannst nur deine eigenen Nachrichten löschen."
+    );
+    return;
+  }
+
+  showModal(
+    "warning",
+    "Nachricht löschen",
+    "Möchtest du diese Nachricht wirklich löschen?",
+    async () => {
+      try {
+        await updateDoc(doc(db, "chats", activeChatId, "messages", messageId), {
+          text: "",
+          fileURL: "",
+          fileName: "",
+          fileType: "",
+          deleted: true,
+          deletedAt: serverTimestamp(),
+        });
+
+        showModal(
+          "success",
+          "Gelöscht",
+          "Die Nachricht wurde gelöscht."
+        );
+      } catch (error) {
+        console.error(error);
+
+        showModal(
+          "error",
+          "Fehler",
+          "Die Nachricht konnte nicht gelöscht werden."
+        );
+      }
+    }
+  );
+}
+
 function renderMessages(messages) {
   messagesList.innerHTML = "";
 
@@ -552,6 +640,7 @@ function renderMessages(messages) {
     const fileIcon = getFileIcon(message.fileType || "");
 
     const isImage = message.fileType?.startsWith("image/");
+    const isDeleted = message.deleted === true;
 
     const readBy = message.readBy || [];
     const partnerHasRead = activePartner && readBy.includes(activePartner.id);
@@ -562,32 +651,73 @@ function renderMessages(messages) {
     row.innerHTML = `
       <div class="message-content">
         <div class="message-bubble">
-          ${safeText ? `<div class="message-text">${safeText}</div>` : ""}
-
           ${
-            message.fileURL && isImage
-              ? `<a href="${message.fileURL}" target="_blank" rel="noopener noreferrer">
-                  <img src="${message.fileURL}" class="chat-image" alt="${safeFileName}" />
-                </a>`
-              : ""
-          }
+            isDeleted
+              ? `<div class="message-deleted">Diese Nachricht wurde gelöscht.</div>`
+              : `
+                ${safeText ? `<div class="message-text">${safeText}</div>` : ""}
 
-          ${
-            message.fileURL && !isImage
-              ? `<div class="message-file">
-                  <a href="${message.fileURL}" target="_blank" rel="noopener noreferrer">
-                    ${fileIcon} ${safeFileName}
-                  </a>
-                </div>`
-              : ""
+                ${
+                  message.fileURL && isImage
+                    ? `<a href="${message.fileURL}" target="_blank" rel="noopener noreferrer">
+                         <img src="${message.fileURL}" class="chat-image" alt="${safeFileName}" />
+                       </a>`
+                    : ""
+                }
+
+                ${
+                  message.fileURL && !isImage
+                    ? `<div class="message-file">
+                        <a href="${message.fileURL}" target="_blank" rel="noopener noreferrer">
+                          ${fileIcon} ${safeFileName}
+                        </a>
+                      </div>`
+                    : ""
+                }
+              `
           }
         </div>
+
+        ${
+          !isDeleted
+            ? `
+              <div class="message-actions">
+                ${
+                  message.text
+                    ? `<button type="button" class="message-action-btn copy-btn">Kopieren</button>`
+                    : ""
+                }
+
+                ${
+                  message.senderId === currentUser.uid
+                    ? `<button type="button" class="message-action-btn delete delete-btn">Löschen</button>`
+                    : ""
+                }
+              </div>
+            `
+            : ""
+        }
 
         <div class="message-time">
           ${formatTime(message.createdAt)} ${checkMark}
         </div>
       </div>
     `;
+
+    const copyBtn = row.querySelector(".copy-btn");
+    const deleteBtn = row.querySelector(".delete-btn");
+
+    if (copyBtn) {
+      copyBtn.addEventListener("click", () => {
+        copyMessageText(message.text || "");
+      });
+    }
+
+    if (deleteBtn) {
+      deleteBtn.addEventListener("click", () => {
+        deleteMessage(message.id, message.senderId);
+      });
+    }
 
     messagesList.appendChild(row);
   });
