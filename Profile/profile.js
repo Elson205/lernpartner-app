@@ -21,6 +21,12 @@ import {
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 
+// Modification : import du système global de badges de notification.
+import {
+  startNotificationBadges,
+  stopNotificationBadges,
+} from "../notification-badges.js";
+
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
@@ -650,6 +656,8 @@ if (chatBtn) {
 if (logoutBtn) {
   logoutBtn.addEventListener("click", async () => {
     try {
+      // Modification : arrêt des badges avant la déconnexion.
+      stopNotificationBadges();
       await signOut(auth);
       window.location.href = "../Login/login.html";
     } catch (error) {
@@ -690,6 +698,9 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   currentUser = user;
+
+  // Modification : démarrage des badges de notification après connexion.
+  startNotificationBadges(currentUser.uid);
 
   await loadUserProfile();
 });

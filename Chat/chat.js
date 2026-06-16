@@ -31,6 +31,12 @@ import {
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
 
+// Modification : import du système global de badges de notification.
+import {
+  startNotificationBadges,
+  stopNotificationBadges,
+} from "../notification-badges.js";
+
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
@@ -556,13 +562,13 @@ function renderMessages(messages) {
     row.innerHTML = `
       <div class="message-content">
         <div class="message-bubble">
-          ${safeText ? `<div>${safeText}</div>` : ""}
+          ${safeText ? `<div class="message-text">${safeText}</div>` : ""}
 
           ${
             message.fileURL && isImage
               ? `<a href="${message.fileURL}" target="_blank" rel="noopener noreferrer">
-                   <img src="${message.fileURL}" class="chat-image" alt="${safeFileName}" />
-                 </a>`
+                  <img src="${message.fileURL}" class="chat-image" alt="${safeFileName}" />
+                </a>`
               : ""
           }
 
@@ -843,6 +849,8 @@ async function sendMessage() {
   });
 
   messageInput.value = "";
+  resizeMessageInput();
+
   fileInput.value = "";
   attachedFile = null;
   filePreview.textContent = "";
@@ -861,6 +869,18 @@ async function setUserOnlineStatus(isOnline) {
   );
 }
 
+/* =========================
+   MODIFICATION: agrandissement automatique du textarea
+   La zone grandit jusqu'à une limite quand le texte devient long.
+========================= */
+function resizeMessageInput() {
+  messageInput.style.height = "auto";
+  messageInput.style.height = `${Math.min(messageInput.scrollHeight, 130)}px`;
+}
+
+messageInput.addEventListener("input", resizeMessageInput);
+
+
 messageForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -874,6 +894,28 @@ messageForm.addEventListener("submit", async (event) => {
       "Fehler",
       "Nachricht konnte nicht gesendet werden.",
     );
+  }
+});
+
+/* =========================
+   MODIFICATION: comportement type WhatsApp
+   Enter envoie le message, Shift + Enter ajoute une nouvelle ligne.
+========================= */
+messageInput.addEventListener("keydown", async (event) => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+
+    try {
+      await sendMessage();
+    } catch (error) {
+      console.error(error);
+
+      showModal(
+        "error",
+        "Fehler",
+        "Nachricht konnte nicht gesendet werden."
+      );
+    }
   }
 });
 
@@ -939,6 +981,8 @@ window.addEventListener("beforeunload", () => {
 logoutBtn.addEventListener("click", async () => {
   try {
     await setUserOnlineStatus(false);
+    // Modification : arrêt des badges avant la déconnexion.
+    stopNotificationBadges();
     await signOut(auth);
     window.location.href = "../Login/login.html";
   } catch (error) {
@@ -997,6 +1041,9 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   currentUser = user;
+
+  // Modification : démarrage des badges de notification après connexion.
+  startNotificationBadges(currentUser.uid);
 
   try {
     await setUserOnlineStatus(true);

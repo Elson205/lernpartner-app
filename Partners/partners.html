@@ -29,14 +29,18 @@
           <span class="nav-text">Partner</span>
         </button>
 
+        <!-- Modification : ajout du badge rouge pour les notifications de demandes -->
         <button type="button" id="requestsBtn" class="nav-btn">
           <span class="nav-icon">🤝</span>
           <span class="nav-text">Anfragen</span>
+          <span id="requestsBadge" class="nav-badge hidden">0</span>
         </button>
 
+        <!-- Modification : ajout du badge rouge pour les nouveaux messages -->
         <button type="button" id="chatBtn" class="nav-btn">
           <span class="nav-icon">💬</span>
           <span class="nav-text">Chat</span>
+          <span id="chatBadge" class="nav-badge hidden">0</span>
         </button>
 
         <button type="button" id="logoutBtn" class="nav-btn logout">
@@ -51,7 +55,8 @@
         <h1>Lernpartner finden</h1>
 
         <p class="intro-text">
-          Finde Studierende, die ähnliche Kurse belegen oder zu deinem Studienbereich passen.
+          Finde Studierende, die ähnliche Kurse belegen oder zu deinem
+          Studienbereich passen.
         </p>
 
         <form id="partnerSearchForm" class="partner-search-form">
@@ -96,13 +101,9 @@
 
         <h2 id="modalTitle">Hinweis</h2>
 
-        <p id="modalMessage">
-          Nachricht...
-        </p>
+        <p id="modalMessage">Nachricht...</p>
 
-        <button type="button" id="modalCloseBtn">
-          OK
-        </button>
+        <button type="button" id="modalCloseBtn">OK</button>
       </div>
     </div>
 

@@ -582,3 +582,40 @@ header {
     font-size: 0.9rem;
   }
 }
+
+/* =========================
+   MODIFICATION: BADGES DE NOTIFICATION
+   Petit badge rouge sur les boutons de navigation.
+========================= */
+.nav-btn {
+  position: relative;
+}
+
+.nav-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+
+  min-width: 18px;
+  height: 18px;
+
+  padding: 0 5px;
+
+  background: #ef4444;
+  color: white;
+
+  border-radius: 999px;
+
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+
+  border: 2px solid white;
+
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.nav-badge.hidden {
+  display: none;
+}

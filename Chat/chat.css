@@ -1,8 +1,20 @@
+/* =========================
+   MODIFICATION: empêcher le scroll général de la page
+   Chaque zone interne aura son propre scroll.
+========================= */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: Arial, sans-serif;
   background-color: #f7f9fc;
   color: #222;
   margin: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 header {
@@ -86,10 +98,15 @@ header {
   white-space: nowrap;
 }
 
+/* =========================
+   MODIFICATION: la page Chat prend une hauteur fixe
+   Cela empêche les messages de pousser le formulaire vers le bas.
+========================= */
 .chat-page {
   max-width: 1280px;
+  /* La hauteur disponible est calculée après le header */
   height: calc(100vh - 105px);
-  margin: 1.5rem auto;
+  margin: 1rem auto;
   display: grid;
   grid-template-columns: 330px 1fr 270px;
   background: white;
@@ -97,14 +114,25 @@ header {
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   border: 1px solid #d7dde8;
+  /* Important pour que les enfants puissent avoir leur propre scroll */
+  min-height: 0;
 }
 
+/* =========================
+   MODIFICATION: colonne contacts fixe
+   Seule la liste des contacts doit scroller.
+========================= */
 .contacts-panel {
   border-right: 1px solid #d7dde8;
   background: white;
+
   display: flex;
   flex-direction: column;
+
   min-width: 0;
+  min-height: 0;
+
+  overflow: hidden;
 }
 
 .contact-search-row {
@@ -132,9 +160,13 @@ header {
   font-size: 0.95rem;
 }
 
+/* =========================
+   MODIFICATION: scroll uniquement dans la liste des contacts
+========================= */
 .contacts-list {
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .contact-item {
@@ -207,11 +239,18 @@ header {
   margin-left: 0.4rem;
 }
 
+/* =========================
+   MODIFICATION: colonne conversation fixe
+   Le header et le formulaire restent visibles.
+   Seule la liste des messages scrolle.
+========================= */
 .chat-panel {
   background: white;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-header {
@@ -265,9 +304,15 @@ header {
   background: #9ca3af;
 }
 
+/* =========================
+   MODIFICATION: scroll uniquement dans la zone des messages
+   Le formulaire reste toujours visible en bas.
+========================= */
 .messages-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
   padding: 1.4rem;
   background: #ffffff;
 }
@@ -338,6 +383,9 @@ header {
   display: block;
 }
 
+/* =========================
+   MODIFICATION: le formulaire ne doit jamais être poussé hors de l'écran
+========================= */
 .message-form {
   display: grid;
   grid-template-columns: 46px 1fr 100px;
@@ -345,6 +393,7 @@ header {
   padding: 1rem;
   border-top: 1px solid #d7dde8;
   background: white;
+  flex-shrink: 0;
 }
 
 .attach-btn {
@@ -362,12 +411,24 @@ header {
   display: none;
 }
 
-.message-form input[type="text"] {
+/* =========================
+   MODIFICATION: zone de texte multi-lignes
+   Le message passe à la ligne comme dans WhatsApp.
+========================= */
+.message-form textarea {
   border: 1px solid #cfd7e3;
   border-radius: 8px;
   padding: 0.8rem;
   font-size: 1rem;
+  font-family: inherit;
   outline: none;
+  resize: none;
+  min-height: 44px;
+  max-height: 130px;
+  overflow-y: auto;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .send-btn {
@@ -384,12 +445,22 @@ header {
   padding: 0 1rem 0.8rem;
   color: #0b2850;
   font-size: 0.85rem;
+  /* Modification : la preview fichier reste sous le formulaire sans casser le layout */
+  flex-shrink: 0;
 }
 
+/* =========================
+   MODIFICATION: profil fixe à droite
+   Il ne bouge pas quand on scrolle dans les messages.
+   Il scrolle seulement si son propre contenu devient trop long.
+========================= */
 .profile-panel {
   border-left: 1px solid #d7dde8;
   background: white;
   padding: 1.4rem 1.2rem;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .profile-photo {
@@ -588,17 +659,24 @@ header {
     padding: 0.5rem 0.7rem;
   }
 
+  /* =========================
+    MODIFICATION MOBILE:
+    La page garde une hauteur fixe et seul le contenu interne scrolle.
+  ========================= */
   .chat-page {
     height: calc(100vh - 120px);
     margin: 0;
     border-radius: 0;
     display: block;
     border: none;
+    overflow: hidden;
   }
 
   .contacts-panel,
   .chat-panel {
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .chat-panel {
@@ -628,12 +706,6 @@ header {
 
   .message-content {
     max-width: 82%;
-  }
-
-  .message-form {
-    grid-template-columns: 44px 1fr 82px;
-    gap: 0.5rem;
-    padding: 0.7rem;
   }
 
   .send-btn {
@@ -669,7 +741,8 @@ header {
   opacity: 0.75;
 }
 
-.message-form.disabled input[type="text"] {
+/* Modification : style désactivé adapté au textarea */
+.message-form.disabled textarea {
   background: #e5e7eb;
   cursor: not-allowed;
 }
@@ -779,4 +852,43 @@ header {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* =========================
+   MODIFICATION: BADGES DE NOTIFICATION
+   Petit badge rouge sur les boutons de navigation.
+========================= */
+.nav-btn {
+  position: relative;
+}
+
+.nav-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: #ef4444;
+  color: white;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.nav-badge.hidden {
+  display: none;
+}
+
+/* =========================
+   MODIFICATION: conserver les retours à la ligne dans les messages
+   Cela permet d'afficher les messages multi-lignes comme dans WhatsApp.
+========================= */
+.message-text {
+  white-space: pre-wrap;
+  word-break: break-word;
 }

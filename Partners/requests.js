@@ -9,16 +9,23 @@ import {
 import {
   getFirestore,
   collection,
+  doc,
   query,
   where,
   getDocs,
   getDoc,
-  doc,
   updateDoc,
-  setDoc,
   deleteDoc,
+  setDoc,
   serverTimestamp,
+  arrayUnion,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+// Modification : import du système global de badges de notification.
+import {
+  startNotificationBadges,
+  stopNotificationBadges,
+} from "../notification-badges.js";
 
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -150,6 +157,34 @@ function getStatusText(status) {
   return status || "Unbekannt";
 }
 
+// Modification : marque comme vues toutes les demandes concernant l'utilisateur actuel.
+async function markRequestsAsSeen() {
+  if (!currentUser) return;
+
+  const requestsQuery = query(
+    collection(db, "partnerRequests"),
+    where("participants", "array-contains", currentUser.uid)
+  );
+
+  const snapshot = await getDocs(requestsQuery);
+
+  const updates = snapshot.docs.map((requestDocument) => {
+    const requestData = requestDocument.data();
+    const seenBy = requestData.seenBy || [];
+
+    if (seenBy.includes(currentUser.uid)) {
+      return null;
+    }
+
+    return updateDoc(doc(db, "partnerRequests", requestDocument.id), {
+      seenBy: arrayUnion(currentUser.uid),
+      updatedAt: serverTimestamp(),
+    });
+  });
+
+  await Promise.all(updates.filter(Boolean));
+}
+
 /* =========================
    MODIFICATION: Fonction pour terminer une collaboration acceptée
    La demande passe à "ended" et le chat correspondant devient inactif.
@@ -157,11 +192,13 @@ function getStatusText(status) {
 async function endCollaboration(requestId, otherUserId) {
   const chatId = createChatId(currentUser.uid, otherUserId);
 
+  // Modification : quand une collaboration est terminée, seul celui qui termine l'a déjà vue.
   await updateDoc(doc(db, "partnerRequests", requestId), {
     status: "ended",
     endedAt: serverTimestamp(),
     endedBy: currentUser.uid,
     updatedAt: serverTimestamp(),
+    seenBy: [currentUser.uid],
   });
 
   await setDoc(
@@ -250,10 +287,12 @@ function createReceivedCard(requestId, sender, senderId, status) {
   if (acceptBtn) {
     acceptBtn.addEventListener("click", async () => {
       try {
+        // Modification : quand une demande est acceptée, seul celui qui accepte l'a déjà vue.
         await updateDoc(doc(db, "partnerRequests", requestId), {
           status: "accepted",
           acceptedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
+          seenBy: [currentUser.uid],
         });
 
         const chatId = createChatId(currentUser.uid, senderId);
@@ -306,10 +345,12 @@ function createReceivedCard(requestId, sender, senderId, status) {
   if (rejectBtn) {
     rejectBtn.addEventListener("click", async () => {
       try {
+        // Modification : quand une demande est refusée, seul celui qui refuse l'a déjà vue.
         await updateDoc(doc(db, "partnerRequests", requestId), {
           status: "rejected",
           rejectedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
+          seenBy: [currentUser.uid],
         });
 
         showModal(
@@ -601,6 +642,8 @@ if (chatBtn) {
 if (logoutBtn) {
   logoutBtn.addEventListener("click", async () => {
     try {
+      // Modification : arrêt des badges avant la déconnexion.
+      stopNotificationBadges();
       await signOut(auth);
       window.location.href = "../Login/login.html";
     } catch (error) {
@@ -632,6 +675,13 @@ onAuthStateChanged(auth, async (user) => {
   currentUser = user;
 
   try {
+    // Modification : démarrage des badges de notification après connexion.
+    startNotificationBadges(currentUser.uid);
+
+    // Modification : l'ouverture de la page Requests marque les notifications comme vues.
+    await markRequestsAsSeen();
+
+    // Modification : chargement des demandes après le marquage comme vues.
     await loadRequests();
   } catch (error) {
     console.error(error);

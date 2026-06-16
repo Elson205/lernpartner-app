@@ -29,14 +29,18 @@
           <span class="nav-text">Partner</span>
         </button>
 
+        <!-- Modification : ajout du badge rouge pour les notifications de demandes -->
         <button type="button" id="requestsBtn" class="nav-btn">
           <span class="nav-icon">🤝</span>
           <span class="nav-text">Anfragen</span>
+          <span id="requestsBadge" class="nav-badge hidden">0</span>
         </button>
 
+        <!-- Modification : badge utile pour les messages non lus dans les autres conversations -->
         <button type="button" id="chatBtn" class="nav-btn active">
           <span class="nav-icon">💬</span>
           <span class="nav-text">Chat</span>
+          <span id="chatBadge" class="nav-badge hidden">0</span>
         </button>
 
         <button type="button" id="logoutBtn" class="nav-btn logout">
@@ -102,12 +106,14 @@
             accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,audio/*,video/*"
           />
 
-          <input
-            type="text"
+          <!-- Modification : remplacement de input par 
+            pour permettre les messages longs sur plusieurs lignes -->
+          <textarea
             id="messageInput"
             placeholder="Textnachricht senden..."
             autocomplete="off"
-          />
+            rows="1"
+          ></textarea>
 
           <!-- Modification : ajout d'un id au bouton d'envoi pour pouvoir le désactiver depuis chat.js -->
           <button type="submit" id="sendMessageBtn" class="send-btn">
