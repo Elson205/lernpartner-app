@@ -935,3 +935,455 @@ header {
   font-style: italic;
   opacity: 0.75;
 }
+
+/* =========================
+   MODIFICATION: STRUCTURE DU HEADER DU CHAT
+   Cette partie permet d'intégrer proprement le menu trois points dans le header.
+========================= */
+.chat-header-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-header-info h1,
+.chat-header-info p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================
+   MODIFICATION: MENU TROIS POINTS DU CHAT
+   Ce menu donne accès aux médias/fichiers, liens partagés et recherche.
+========================= */
+.chat-options-wrapper {
+  position: relative;
+  margin-left: 0.5rem;
+}
+
+.chat-options-btn {
+  width: 38px;
+  height: 38px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: #eef2f7;
+  color: #0b2850;
+
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+
+.chat-options-btn:hover {
+  background: #dbeafe;
+  transform: translateY(-2px);
+}
+
+.chat-options-menu {
+  position: absolute;
+  top: 46px;
+  right: 0;
+
+  width: 230px;
+
+  background: white;
+  border: 1px solid #d7dde8;
+  border-radius: 12px;
+
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+
+  overflow: hidden;
+
+  z-index: 3000;
+}
+
+.chat-options-menu.hidden {
+  display: none;
+}
+
+.chat-options-menu button {
+  width: 100%;
+
+  border: none;
+  background: white;
+  color: #111827;
+
+  padding: 0.85rem 1rem;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  font-weight: 600;
+  font-size: 0.9rem;
+
+  transition: background 0.2s;
+}
+
+.chat-options-menu button:hover {
+  background: #f3f6fb;
+}
+
+/* =========================
+   MODIFICATION: MODALS POUR MÉDIAS, LIENS ET RECHERCHE
+   Ces modals réutilisent une structure commune.
+========================= */
+.chat-content-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.chat-content-modal.hidden {
+  display: none;
+}
+
+.chat-content-backdrop {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(11, 40, 80, 0.45);
+
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.chat-content-box {
+  position: relative;
+  z-index: 1;
+
+  width: min(92vw, 760px);
+  max-height: 88vh;
+
+  background: white;
+  border-radius: 18px;
+
+  display: flex;
+  flex-direction: column;
+
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.3);
+
+  overflow: hidden;
+
+  animation: modalPop 0.2s ease;
+}
+
+.chat-content-header {
+  padding: 1rem 1.2rem;
+
+  border-bottom: 1px solid #e5e9f0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+
+  background: #f8fafc;
+}
+
+.chat-content-header h2 {
+  margin: 0;
+
+  color: #0b2850;
+  font-size: 1.25rem;
+}
+
+.chat-content-close {
+  width: 36px;
+  height: 36px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: #eef2f7;
+  color: #0b2850;
+
+  font-size: 1.6rem;
+  line-height: 1;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+
+.chat-content-close:hover {
+  background: #ef4444;
+  color: white;
+  transform: scale(1.05);
+}
+
+.chat-content-list {
+  padding: 1rem;
+  overflow-y: auto;
+  min-height: 160px;
+}
+
+/* =========================
+   MODIFICATION: AFFICHAGE DES MÉDIAS ET FICHIERS
+   Les images sont affichées en grille, les fichiers en cartes.
+========================= */
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.9rem;
+}
+
+.media-item {
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+
+  background: #f8fafc;
+
+  padding: 0.7rem;
+
+  overflow: hidden;
+}
+
+.media-item img {
+  width: 100%;
+  height: 130px;
+
+  object-fit: cover;
+
+  border-radius: 10px;
+
+  display: block;
+  margin-bottom: 0.55rem;
+}
+
+.media-item a {
+  color: #0b2850;
+  font-weight: 700;
+  text-decoration: none;
+
+  word-break: break-word;
+}
+
+.media-item a:hover {
+  text-decoration: underline;
+}
+
+.file-item {
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+
+  background: #f8fafc;
+
+  padding: 0.9rem;
+
+  margin-bottom: 0.75rem;
+
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.file-icon {
+  width: 42px;
+  height: 42px;
+
+  border-radius: 10px;
+
+  background: #eaf3ff;
+  color: #0b2850;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 1.3rem;
+
+  flex-shrink: 0;
+}
+
+.file-details {
+  min-width: 0;
+}
+
+.file-details a {
+  color: #0b2850;
+  font-weight: 700;
+  text-decoration: none;
+
+  word-break: break-word;
+}
+
+.file-details a:hover {
+  text-decoration: underline;
+}
+
+.file-details small {
+  display: block;
+  margin-top: 0.2rem;
+
+  color: #6b7280;
+}
+
+/* =========================
+   MODIFICATION: AFFICHAGE DES LIENS PARTAGÉS
+========================= */
+.link-item {
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+
+  background: #f8fafc;
+
+  padding: 0.9rem;
+
+  margin-bottom: 0.75rem;
+}
+
+.link-item a {
+  color: #0b2850;
+  font-weight: 700;
+
+  word-break: break-all;
+}
+
+.link-item small {
+  display: block;
+  margin-top: 0.35rem;
+
+  color: #6b7280;
+}
+
+/* =========================
+   MODIFICATION: RECHERCHE DANS LA CONVERSATION
+========================= */
+.message-search-box {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e9f0;
+}
+
+.message-search-box input {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  border: 1px solid #cfd7e3;
+  border-radius: 10px;
+
+  padding: 0.8rem 0.9rem;
+
+  font-size: 0.95rem;
+  outline: none;
+
+  transition:
+    border 0.2s,
+    box-shadow 0.2s;
+}
+
+.message-search-box input:focus {
+  border-color: #0b2850;
+  box-shadow: 0 0 0 4px rgba(11, 40, 80, 0.1);
+}
+
+.search-result-item {
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+
+  background: #f8fafc;
+
+  padding: 0.9rem;
+
+  margin-bottom: 0.75rem;
+}
+
+.search-result-text {
+  margin: 0 0 0.4rem;
+
+  color: #111827;
+
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.search-result-meta {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.search-highlight {
+  background: #fff7d6;
+  color: #92400e;
+  border-radius: 4px;
+  padding: 0 0.15rem;
+  font-weight: 800;
+}
+
+/* =========================
+   MODIFICATION: RÉSULTAT DE RECHERCHE DANS CONTACTS
+   Cette classe sera utilisée quand un contact correspond grâce à un message trouvé.
+========================= */
+.contact-match-hint {
+  display: block;
+
+  margin-top: 0.2rem;
+
+  color: inherit;
+  opacity: 0.8;
+
+  font-size: 0.78rem;
+  font-style: italic;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================
+   MODIFICATION: RESPONSIVE DU MENU ET DES MODALS CHAT
+========================= */
+@media (max-width: 760px) {
+  .chat-options-menu {
+    right: 0;
+    width: 215px;
+  }
+
+  .chat-options-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .chat-content-box {
+    width: 96vw;
+    max-height: 90vh;
+  }
+
+  .chat-content-header h2 {
+    font-size: 1.05rem;
+  }
+
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
+
+  .media-item img {
+    height: 115px;
+  }
+}

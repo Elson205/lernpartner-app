@@ -15,6 +15,7 @@ import {
   orderBy,
   limit,
   onSnapshot,
+  getDocs,
   addDoc,
   updateDoc,
   setDoc,
@@ -94,12 +95,59 @@ const modalTitle = document.getElementById("modalTitle");
 const modalMessage = document.getElementById("modalMessage");
 const modalCloseBtn = document.getElementById("modalCloseBtn");
 
+/* =========================
+   MODIFICATION: éléments du menu trois points
+   Ces éléments viennent du nouveau chat.html.
+========================= */
+const chatOptionsBtn = document.getElementById("chatOptionsBtn");
+const chatOptionsMenu = document.getElementById("chatOptionsMenu");
+const showMediaFilesBtn = document.getElementById("showMediaFilesBtn");
+const showSharedLinksBtn = document.getElementById("showSharedLinksBtn");
+const openMessageSearchBtn = document.getElementById("openMessageSearchBtn");
+
+/* =========================
+   MODIFICATION: éléments de la modal médias/fichiers
+========================= */
+const mediaFilesModal = document.getElementById("mediaFilesModal");
+const mediaFilesBackdrop = document.getElementById("mediaFilesBackdrop");
+const closeMediaFilesModalBtn = document.getElementById(
+  "closeMediaFilesModalBtn"
+);
+const mediaFilesList = document.getElementById("mediaFilesList");
+
+/* =========================
+   MODIFICATION: éléments de la modal liens partagés
+========================= */
+const sharedLinksModal = document.getElementById("sharedLinksModal");
+const sharedLinksBackdrop = document.getElementById("sharedLinksBackdrop");
+const closeSharedLinksModalBtn = document.getElementById(
+  "closeSharedLinksModalBtn"
+);
+const sharedLinksList = document.getElementById("sharedLinksList");
+
+/* =========================
+   MODIFICATION: éléments de la modal recherche dans la conversation
+========================= */
+const messageSearchModal = document.getElementById("messageSearchModal");
+const messageSearchBackdrop = document.getElementById("messageSearchBackdrop");
+const closeMessageSearchModalBtn = document.getElementById(
+  "closeMessageSearchModalBtn"
+);
+const messageSearchInput = document.getElementById("messageSearchInput");
+const messageSearchResults = document.getElementById("messageSearchResults");
+
 let currentUser = null;
 let chats = [];
 let activeChatId = null;
 let activeChat = null;
 let activePartner = null;
 let attachedFile = null;
+
+/* =========================
+   MODIFICATION: stockage local des messages actifs
+   Cela permet d'afficher médias, fichiers, liens et résultats de recherche sans refaire une requête.
+========================= */
+let activeMessages = [];
 
 const urlParams = new URLSearchParams(window.location.search);
 
@@ -199,6 +247,17 @@ function escapeHTML(text = "") {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+/* =========================
+   MODIFICATION: normalisation pour les recherches
+   Permet de chercher sans tenir compte des majuscules et accents.
+========================= */
+function normalizeText(text = "") {
+  return String(text)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function formatDate(timestamp) {
@@ -337,6 +396,7 @@ function renderEmptyChat() {
   activeChatId = null;
   activeChat = null;
   activePartner = null;
+  activeMessages = [];
 
   chatPartnerName.textContent = "Chat auswählen";
   chatPartnerStatus.textContent = "-";
@@ -389,22 +449,60 @@ async function getPartnerData(chat) {
   return getUserData(partnerId);
 }
 
+/* =========================
+   MODIFICATION: charge les derniers messages d'un chat pour la recherche globale
+   Firestore ne fait pas de recherche texte avancée, donc on charge les derniers messages côté client.
+========================= */
+async function getRecentMessagesForSearch(chatId) {
+  const recentMessagesQuery = query(
+    collection(db, "chats", chatId, "messages"),
+    orderBy("createdAt", "desc"),
+    limit(30)
+  );
+
+  const snapshot = await getDocs(recentMessagesQuery);
+
+  return snapshot.docs.map((messageDocument) => ({
+    id: messageDocument.id,
+    ...messageDocument.data(),
+  }));
+}
+
 async function enrichChatsWithPartnerData(chatDocs) {
   const enriched = await Promise.all(
     chatDocs.map(async (chat) => {
       const partner = await getPartnerData(chat);
+      const recentMessages = await getRecentMessagesForSearch(chat.id);
 
       return {
         ...chat,
         partner,
+        recentMessages,
       };
-    }),
+    })
   );
 
   return enriched.filter((chat) => chat.partner);
 }
 
-function renderContacts(list = chats) {
+/* =========================
+   MODIFICATION: trouve un extrait de message correspondant à la recherche globale
+========================= */
+function getMatchingMessagePreview(chat, queryText) {
+  const normalizedQuery = normalizeText(queryText);
+
+  if (!normalizedQuery) return "";
+
+  const matchingMessage = (chat.recentMessages || []).find((message) => {
+    if (message.deleted) return false;
+
+    return normalizeText(message.text || "").includes(normalizedQuery);
+  });
+
+  return matchingMessage?.text || "";
+}
+
+function renderContacts(list = chats, searchValue = "") {
   contactsList.innerHTML = "";
 
   if (list.length === 0) {
@@ -424,6 +522,7 @@ function renderContacts(list = chats) {
 
     const lastMessage = chat.lastMessage || "Noch keine Nachricht";
     const lastMessageTime = formatTime(chat.lastMessageAt);
+    const matchingPreview = getMatchingMessagePreview(chat, searchValue);
 
     item.innerHTML = `
       <div class="contact-avatar-wrapper">
@@ -443,6 +542,14 @@ function renderContacts(list = chats) {
         </h3>
 
         <p class="contact-preview">${escapeHTML(lastMessage)}</p>
+
+        ${
+          matchingPreview
+            ? `<span class="contact-match-hint">Gefunden: ${escapeHTML(
+                matchingPreview
+              )}</span>`
+            : ""
+        }
       </div>
 
       <span class="contact-time">${lastMessageTime}</span>
@@ -455,7 +562,7 @@ function renderContacts(list = chats) {
 
       openPhotoModal(
         partner.photoURL || "../user-placeholder.jpg",
-        partner.fullname || "Kontakt",
+        partner.fullname || "Kontakt"
       );
     });
 
@@ -477,7 +584,7 @@ function renderChatHeader(partner) {
     activeDot.classList.remove("offline");
   } else {
     chatPartnerStatus.textContent = `Zuletzt online: ${formatDate(
-      partner.lastSeen,
+      partner.lastSeen
     )}`;
     activeText.textContent = "Offline";
     activeDot.classList.add("offline");
@@ -488,11 +595,14 @@ function openPhotoModal(photoURL, name) {
   photoModalImage.src = photoURL || "../user-placeholder.jpg";
   photoModalName.textContent = name || "Profilbild";
 
+  // Modification : compatibilité avec le nouveau HTML qui utilise hidden.
+  photoModal.classList.remove("hidden");
   photoModal.classList.add("open");
 }
 
 function closePhotoModalWindow() {
   photoModal.classList.remove("open");
+  photoModal.classList.add("hidden");
 }
 
 closePhotoModal.addEventListener("click", closePhotoModalWindow);
@@ -503,19 +613,13 @@ photoModal.addEventListener("click", (event) => {
   }
 });
 
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") {
-    closePhotoModalWindow();
-    closeModal();
-  }
-});
-
 function renderProfilePanel(partner) {
   profilePhoto.src = partner.photoURL || "../user-placeholder.jpg";
   profileName.textContent = partner.fullname || "Kontakt";
   profileFaculty.textContent = partner.faculty || "-";
   profileFachbereich.textContent = partner.fachbereich || "-";
   profileSemester.textContent = partner.semester || "-";
+
   // Modification : affichage des langues, avec fallback temporaire sur nationality pour les anciens profils.
   profileLanguages.textContent = partner.languages || partner.nationality || "-";
 
@@ -526,9 +630,350 @@ function renderProfilePanel(partner) {
   profilePhoto.onclick = () => {
     openPhotoModal(
       partner.photoURL || "../user-placeholder.jpg",
-      partner.fullname || "Kontakt",
+      partner.fullname || "Kontakt"
     );
   };
+}
+
+/* =========================
+   MODIFICATION: ouvrir/fermer le menu trois points
+========================= */
+function toggleChatOptionsMenu() {
+  if (!chatOptionsMenu) return;
+
+  chatOptionsMenu.classList.toggle("hidden");
+}
+
+function closeChatOptionsMenu() {
+  if (!chatOptionsMenu) return;
+
+  chatOptionsMenu.classList.add("hidden");
+}
+
+if (chatOptionsBtn) {
+  chatOptionsBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleChatOptionsMenu();
+  });
+}
+
+document.addEventListener("click", (event) => {
+  if (!chatOptionsMenu || !chatOptionsBtn) return;
+
+  const clickedInsideMenu = chatOptionsMenu.contains(event.target);
+  const clickedMenuButton = chatOptionsBtn.contains(event.target);
+
+  if (!clickedInsideMenu && !clickedMenuButton) {
+    closeChatOptionsMenu();
+  }
+});
+
+/* =========================
+   MODIFICATION: fonctions générales pour les nouvelles modals du chat
+========================= */
+function openChatContentModal(modal) {
+  if (!modal) return;
+
+  modal.classList.remove("hidden");
+}
+
+function closeChatContentModal(modal) {
+  if (!modal) return;
+
+  modal.classList.add("hidden");
+}
+
+function ensureActiveChatSelected() {
+  if (!activeChatId) {
+    showModal(
+      "info",
+      "Kein Chat ausgewählt",
+      "Bitte wähle zuerst einen Chat aus."
+    );
+
+    return false;
+  }
+
+  return true;
+}
+
+/* =========================
+   MODIFICATION: extraire les liens depuis un texte
+========================= */
+function extractLinksFromText(text = "") {
+  const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  const matches = text.match(urlRegex) || [];
+
+  return matches.map((url) => {
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      return url;
+    }
+
+    return `https://${url}`;
+  });
+}
+
+/* =========================
+   MODIFICATION: afficher les médias et fichiers du chat actif
+========================= */
+function showMediaAndFiles() {
+  closeChatOptionsMenu();
+
+  if (!ensureActiveChatSelected()) return;
+
+  if (!mediaFilesList || !mediaFilesModal) return;
+
+  const fileMessages = activeMessages.filter((message) => {
+    return !message.deleted && message.fileURL && message.fileName;
+  });
+
+  if (fileMessages.length === 0) {
+    mediaFilesList.innerHTML =
+      '<p class="empty-message">Keine Medien oder Dateien gefunden.</p>';
+    openChatContentModal(mediaFilesModal);
+    return;
+  }
+
+  const imageMessages = fileMessages.filter((message) =>
+    message.fileType?.startsWith("image/")
+  );
+
+  const otherFileMessages = fileMessages.filter(
+    (message) => !message.fileType?.startsWith("image/")
+  );
+
+  let html = "";
+
+  if (imageMessages.length > 0) {
+    html += '<div class="media-grid">';
+
+    imageMessages.forEach((message) => {
+      html += `
+        <div class="media-item">
+          <a href="${escapeHTML(message.fileURL)}" target="_blank" rel="noopener noreferrer">
+            <img
+              src="${escapeHTML(message.fileURL)}"
+              alt="${escapeHTML(message.fileName || "Bild")}"
+            />
+          </a>
+
+          <a href="${escapeHTML(message.fileURL)}" target="_blank" rel="noopener noreferrer">
+            ${escapeHTML(message.fileName || "Bild öffnen")}
+          </a>
+        </div>
+      `;
+    });
+
+    html += "</div>";
+  }
+
+  if (otherFileMessages.length > 0) {
+    otherFileMessages.forEach((message) => {
+      html += `
+        <div class="file-item">
+          <div class="file-icon">${getFileIcon(message.fileType || "")}</div>
+
+          <div class="file-details">
+            <a href="${escapeHTML(message.fileURL)}" target="_blank" rel="noopener noreferrer">
+              ${escapeHTML(message.fileName || "Datei")}
+            </a>
+
+            <small>${formatDate(message.createdAt)}</small>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  mediaFilesList.innerHTML = html;
+  openChatContentModal(mediaFilesModal);
+}
+
+/* =========================
+   MODIFICATION: afficher les liens partagés du chat actif
+========================= */
+function showSharedLinks() {
+  closeChatOptionsMenu();
+
+  if (!ensureActiveChatSelected()) return;
+
+  if (!sharedLinksList || !sharedLinksModal) return;
+
+  const links = [];
+
+  activeMessages.forEach((message) => {
+    if (message.deleted) return;
+
+    const messageLinks = extractLinksFromText(message.text || "");
+
+    messageLinks.forEach((url) => {
+      links.push({
+        url,
+        createdAt: message.createdAt,
+      });
+    });
+  });
+
+  if (links.length === 0) {
+    sharedLinksList.innerHTML =
+      '<p class="empty-message">Keine Links gefunden.</p>';
+    openChatContentModal(sharedLinksModal);
+    return;
+  }
+
+  sharedLinksList.innerHTML = links
+    .map(
+      (link) => `
+        <div class="link-item">
+          <a href="${escapeHTML(link.url)}" target="_blank" rel="noopener noreferrer">
+            ${escapeHTML(link.url)}
+          </a>
+
+          <small>${formatDate(link.createdAt)}</small>
+        </div>
+      `
+    )
+    .join("");
+
+  openChatContentModal(sharedLinksModal);
+}
+
+/* =========================
+   MODIFICATION: ouvrir la recherche dans la conversation
+========================= */
+function openMessageSearch() {
+  closeChatOptionsMenu();
+
+  if (!ensureActiveChatSelected()) return;
+
+  if (!messageSearchModal || !messageSearchInput || !messageSearchResults) {
+    return;
+  }
+
+  messageSearchInput.value = "";
+  messageSearchResults.innerHTML =
+    '<p class="empty-message">Gib einen Suchbegriff ein.</p>';
+
+  openChatContentModal(messageSearchModal);
+
+  setTimeout(() => {
+    messageSearchInput.focus();
+  }, 50);
+}
+
+/* =========================
+   MODIFICATION: surligner le mot recherché dans les résultats
+========================= */
+function highlightSearchTerm(text, searchValue) {
+  const safeText = escapeHTML(text);
+
+  if (!searchValue.trim()) return safeText;
+
+  const escapedSearch = searchValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(${escapedSearch})`, "gi");
+
+  return safeText.replace(
+    regex,
+    '<span class="search-highlight">$1</span>'
+  );
+}
+
+/* =========================
+   MODIFICATION: chercher dans les messages du chat actif
+========================= */
+function searchInsideActiveConversation(searchValue) {
+  if (!messageSearchResults) return;
+
+  const normalizedSearch = normalizeText(searchValue.trim());
+
+  if (!normalizedSearch) {
+    messageSearchResults.innerHTML =
+      '<p class="empty-message">Gib einen Suchbegriff ein.</p>';
+    return;
+  }
+
+  const results = activeMessages.filter((message) => {
+    if (message.deleted) return false;
+
+    return normalizeText(message.text || "").includes(normalizedSearch);
+  });
+
+  if (results.length === 0) {
+    messageSearchResults.innerHTML =
+      '<p class="empty-message">Keine passenden Nachrichten gefunden.</p>';
+    return;
+  }
+
+  messageSearchResults.innerHTML = results
+    .map(
+      (message) => `
+        <div class="search-result-item">
+          <p class="search-result-text">
+            ${highlightSearchTerm(message.text || "", searchValue)}
+          </p>
+
+          <div class="search-result-meta">
+            ${message.senderId === currentUser.uid ? "Du" : activePartner?.fullname || "Kontakt"}
+            · ${formatDate(message.createdAt)}
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
+if (showMediaFilesBtn) {
+  showMediaFilesBtn.addEventListener("click", showMediaAndFiles);
+}
+
+if (showSharedLinksBtn) {
+  showSharedLinksBtn.addEventListener("click", showSharedLinks);
+}
+
+if (openMessageSearchBtn) {
+  openMessageSearchBtn.addEventListener("click", openMessageSearch);
+}
+
+if (messageSearchInput) {
+  messageSearchInput.addEventListener("input", () => {
+    searchInsideActiveConversation(messageSearchInput.value);
+  });
+}
+
+if (closeMediaFilesModalBtn) {
+  closeMediaFilesModalBtn.addEventListener("click", () => {
+    closeChatContentModal(mediaFilesModal);
+  });
+}
+
+if (mediaFilesBackdrop) {
+  mediaFilesBackdrop.addEventListener("click", () => {
+    closeChatContentModal(mediaFilesModal);
+  });
+}
+
+if (closeSharedLinksModalBtn) {
+  closeSharedLinksModalBtn.addEventListener("click", () => {
+    closeChatContentModal(sharedLinksModal);
+  });
+}
+
+if (sharedLinksBackdrop) {
+  sharedLinksBackdrop.addEventListener("click", () => {
+    closeChatContentModal(sharedLinksModal);
+  });
+}
+
+if (closeMessageSearchModalBtn) {
+  closeMessageSearchModalBtn.addEventListener("click", () => {
+    closeChatContentModal(messageSearchModal);
+  });
+}
+
+if (messageSearchBackdrop) {
+  messageSearchBackdrop.addEventListener("click", () => {
+    closeChatContentModal(messageSearchModal);
+  });
 }
 
 /* =========================
@@ -601,11 +1046,7 @@ async function deleteMessage(messageId, senderId) {
           deletedAt: serverTimestamp(),
         });
 
-        showModal(
-          "success",
-          "Gelöscht",
-          "Die Nachricht wurde gelöscht."
-        );
+        showModal("success", "Gelöscht", "Die Nachricht wurde gelöscht.");
       } catch (error) {
         console.error(error);
 
@@ -660,8 +1101,8 @@ function renderMessages(messages) {
 
                 ${
                   message.fileURL && isImage
-                    ? `<a href="${message.fileURL}" target="_blank" rel="noopener noreferrer">
-                         <img src="${message.fileURL}" class="chat-image" alt="${safeFileName}" />
+                    ? `<a href="${escapeHTML(message.fileURL)}" target="_blank" rel="noopener noreferrer">
+                         <img src="${escapeHTML(message.fileURL)}" class="chat-image" alt="${safeFileName}" />
                        </a>`
                     : ""
                 }
@@ -669,7 +1110,7 @@ function renderMessages(messages) {
                 ${
                   message.fileURL && !isImage
                     ? `<div class="message-file">
-                        <a href="${message.fileURL}" target="_blank" rel="noopener noreferrer">
+                        <a href="${escapeHTML(message.fileURL)}" target="_blank" rel="noopener noreferrer">
                           ${fileIcon} ${safeFileName}
                         </a>
                       </div>`
@@ -733,7 +1174,7 @@ function subscribeToChats() {
 
   const chatsQuery = query(
     collection(db, "chats"),
-    where("participants", "array-contains", currentUser.uid),
+    where("participants", "array-contains", currentUser.uid)
   );
 
   unsubscribeChats = onSnapshot(
@@ -758,12 +1199,12 @@ function subscribeToChats() {
 
       chats = await enrichChatsWithPartnerData(chatDocs);
 
-      renderContacts();
+      renderContacts(chats, contactSearchInput.value);
 
       // Modification : ouverture automatique du chat reçu dans l'URL.
       if (pendingChatIdFromUrl) {
         const requestedChat = chats.find(
-          (chat) => chat.id === pendingChatIdFromUrl,
+          (chat) => chat.id === pendingChatIdFromUrl
         );
 
         if (requestedChat) {
@@ -791,7 +1232,7 @@ function subscribeToChats() {
           renderProfilePanel(activePartner);
           renderRequestStatus(activeChat);
           updateMessageFormState(activeChat);
-          renderContacts();
+          renderContacts(chats, contactSearchInput.value);
         } else {
           renderEmptyChat();
         }
@@ -802,12 +1243,8 @@ function subscribeToChats() {
       contactsList.innerHTML =
         '<p class="empty-message contacts-empty">Chats konnten nicht geladen werden.</p>';
 
-      showModal(
-        "error",
-        "Fehler",
-        "Chats konnten nicht geladen werden.",
-      );
-    },
+      showModal("error", "Fehler", "Chats konnten nicht geladen werden.");
+    }
   );
 }
 
@@ -819,7 +1256,7 @@ function subscribeToMessages(chatId) {
   const messagesQuery = query(
     collection(db, "chats", chatId, "messages"),
     orderBy("createdAt", "asc"),
-    limit(80),
+    limit(80)
   );
 
   unsubscribeMessages = onSnapshot(
@@ -830,8 +1267,20 @@ function subscribeToMessages(chatId) {
         ...messageDocument.data(),
       }));
 
+      // Modification : sauvegarde locale des messages actifs pour médias/liens/recherche.
+      activeMessages = messages;
+
       renderMessages(messages);
       await markMessagesAsRead(chatId, snapshot.docs);
+
+      // Modification : si la modal recherche est ouverte, on met les résultats à jour automatiquement.
+      if (
+        messageSearchModal &&
+        !messageSearchModal.classList.contains("hidden") &&
+        messageSearchInput
+      ) {
+        searchInsideActiveConversation(messageSearchInput.value);
+      }
     },
     (error) => {
       console.error(error);
@@ -841,9 +1290,9 @@ function subscribeToMessages(chatId) {
       showModal(
         "error",
         "Fehler",
-        "Nachrichten konnten nicht geladen werden.",
+        "Nachrichten konnten nicht geladen werden."
       );
-    },
+    }
   );
 }
 
@@ -882,12 +1331,18 @@ async function selectChat(chatId) {
 
   activeChat = chat;
   activePartner = chat.partner;
+  activeMessages = [];
 
   attachedFile = null;
   fileInput.value = "";
   filePreview.textContent = "";
 
-  renderContacts();
+  closeChatOptionsMenu();
+  closeChatContentModal(mediaFilesModal);
+  closeChatContentModal(sharedLinksModal);
+  closeChatContentModal(messageSearchModal);
+
+  renderContacts(chats, contactSearchInput.value);
   renderChatHeader(activePartner);
   renderProfilePanel(activePartner);
 
@@ -912,7 +1367,7 @@ async function sendMessage() {
     showModal(
       "info",
       "Kein Chat ausgewählt",
-      "Bitte wähle zuerst einen Chat aus.",
+      "Bitte wähle zuerst einen Chat aus."
     );
     return;
   }
@@ -922,7 +1377,7 @@ async function sendMessage() {
     showModal(
       "info",
       "Lernpartnerschaft beendet",
-      "Diese Lernpartnerschaft wurde beendet. Du kannst keine neuen Nachrichten mehr senden.",
+      "Diese Lernpartnerschaft wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
     );
     return;
   }
@@ -943,7 +1398,7 @@ async function sendMessage() {
       showModal(
         "info",
         "Dateianhänge deaktiviert",
-        "Dateianhänge sind momentan deaktiviert. Firebase Storage ist noch nicht aktiviert.",
+        "Dateianhänge sind momentan deaktiviert. Firebase Storage ist noch nicht aktiviert."
       );
       return;
     }
@@ -996,7 +1451,7 @@ async function setUserOnlineStatus(isOnline) {
       online: isOnline,
       lastSeen: serverTimestamp(),
     },
-    { merge: true },
+    { merge: true }
   );
 }
 
@@ -1011,7 +1466,6 @@ function resizeMessageInput() {
 
 messageInput.addEventListener("input", resizeMessageInput);
 
-
 messageForm.addEventListener("submit", async (event) => {
   event.preventDefault();
 
@@ -1020,11 +1474,7 @@ messageForm.addEventListener("submit", async (event) => {
   } catch (error) {
     console.error(error);
 
-    showModal(
-      "error",
-      "Fehler",
-      "Nachricht konnte nicht gesendet werden.",
-    );
+    showModal("error", "Fehler", "Nachricht konnte nicht gesendet werden.");
   }
 });
 
@@ -1041,11 +1491,7 @@ messageInput.addEventListener("keydown", async (event) => {
     } catch (error) {
       console.error(error);
 
-      showModal(
-        "error",
-        "Fehler",
-        "Nachricht konnte nicht gesendet werden."
-      );
+      showModal("error", "Fehler", "Nachricht konnte nicht gesendet werden.");
     }
   }
 });
@@ -1056,7 +1502,7 @@ fileInput.addEventListener("change", () => {
     showModal(
       "info",
       "Dateianhänge deaktiviert",
-      "Dateianhänge sind momentan deaktiviert.",
+      "Dateianhänge sind momentan deaktiviert."
     );
 
     fileInput.value = "";
@@ -1086,15 +1532,33 @@ fileInput.addEventListener("change", () => {
   filePreview.textContent = `Datei angehängt: ${attachedFile.name}`;
 });
 
+/* =========================
+   MODIFICATION: recherche globale dans les contacts et les derniers messages
+   La recherche regarde le nom du partenaire + les derniers messages chargés côté client.
+========================= */
 contactSearchInput.addEventListener("input", () => {
-  const queryText = contactSearchInput.value.toLowerCase().trim();
+  const queryText = contactSearchInput.value.trim();
+  const normalizedQuery = normalizeText(queryText);
+
+  if (!normalizedQuery) {
+    renderContacts(chats, "");
+    return;
+  }
 
   const filteredChats = chats.filter((chat) => {
     const partnerName = chat.partner.fullname || "";
-    return partnerName.toLowerCase().includes(queryText);
+    const partnerMatch = normalizeText(partnerName).includes(normalizedQuery);
+
+    const messageMatch = (chat.recentMessages || []).some((message) => {
+      if (message.deleted) return false;
+
+      return normalizeText(message.text || "").includes(normalizedQuery);
+    });
+
+    return partnerMatch || messageMatch;
   });
 
-  renderContacts(filteredChats);
+  renderContacts(filteredChats, queryText);
 });
 
 backToContactsBtn.addEventListener("click", closeMobileChat);
@@ -1112,9 +1576,12 @@ window.addEventListener("beforeunload", () => {
 logoutBtn.addEventListener("click", async () => {
   try {
     await setUserOnlineStatus(false);
+
     // Modification : arrêt des badges avant la déconnexion.
     stopNotificationBadges();
+
     await signOut(auth);
+
     window.location.href = "../Login/login.html";
   } catch (error) {
     console.error(error);
@@ -1122,7 +1589,7 @@ logoutBtn.addEventListener("click", async () => {
     showModal(
       "error",
       "Fehler",
-      "Abmeldung fehlgeschlagen. Bitte versuche es erneut.",
+      "Abmeldung fehlgeschlagen. Bitte versuche es erneut."
     );
   }
 });
@@ -1157,6 +1624,21 @@ if (chatBtn) {
   });
 }
 
+/* =========================
+   MODIFICATION: fermeture globale avec Escape
+   Ferme la photo, le menu, les modals médias/liens/recherche et la modal personnalisée.
+========================= */
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+
+  closePhotoModalWindow();
+  closeChatOptionsMenu();
+  closeChatContentModal(mediaFilesModal);
+  closeChatContentModal(sharedLinksModal);
+  closeChatContentModal(messageSearchModal);
+  closeModal();
+});
+
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     showModal(
@@ -1165,7 +1647,7 @@ onAuthStateChanged(auth, async (user) => {
       "Bitte melde dich zuerst an.",
       () => {
         window.location.href = "../Login/login.html";
-      },
+      }
     );
 
     return;
@@ -1183,10 +1665,6 @@ onAuthStateChanged(auth, async (user) => {
   } catch (error) {
     console.error(error);
 
-    showModal(
-      "error",
-      "Fehler",
-      "Chat konnte nicht initialisiert werden.",
-    );
+    showModal("error", "Fehler", "Chat konnte nicht initialisiert werden.");
   }
 });
