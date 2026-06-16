@@ -40,6 +40,12 @@ const chatBtn = document.getElementById("chatBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 
 /* =========================
+   MODIFICATION: Image par défaut du profil
+   Cette constante évite de répéter le chemin de l'image par défaut dans plusieurs fonctions.
+========================= */
+const DEFAULT_PROFILE_PHOTO = "../user-placeholder.jpg";
+
+/* =========================
    MODIFICATION: Récupération des éléments HTML de la modal personnalisée
    Ces éléments remplacent les alert() classiques par une popup au centre de la page.
 ========================= */
@@ -49,6 +55,45 @@ const modalIcon = document.getElementById("modalIcon");
 const modalTitle = document.getElementById("modalTitle");
 const modalMessage = document.getElementById("modalMessage");
 const modalCloseBtn = document.getElementById("modalCloseBtn");
+
+/* =========================
+   MODIFICATION: Récupération des éléments HTML de la modal profil détaillé
+   Ces éléments permettent d'afficher un vrai profil complet au lieu d'un simple texte dans showModal().
+========================= */
+const partnerProfileModal = document.getElementById("partnerProfileModal");
+const partnerProfileBackdrop = document.getElementById(
+  "partnerProfileBackdrop"
+);
+const closePartnerProfileModalBtn = document.getElementById(
+  "closePartnerProfileModalBtn"
+);
+
+const partnerProfilePhoto = document.getElementById("partnerProfilePhoto");
+const partnerProfileName = document.getElementById("partnerProfileName");
+const partnerProfileEmail = document.getElementById("partnerProfileEmail");
+const partnerProfileFaculty = document.getElementById("partnerProfileFaculty");
+const partnerProfileFachbereich = document.getElementById(
+  "partnerProfileFachbereich"
+);
+const partnerProfileSemester = document.getElementById(
+  "partnerProfileSemester"
+);
+const partnerProfileLanguages = document.getElementById(
+  "partnerProfileLanguages"
+);
+const partnerProfileCourses = document.getElementById("partnerProfileCourses");
+const partnerProfileAbout = document.getElementById("partnerProfileAbout");
+
+/* =========================
+   MODIFICATION: Récupération des éléments HTML de la modal photo
+   Cette modal permet d'agrandir la photo de profil quand l'utilisateur clique dessus.
+========================= */
+const profilePhotoModal = document.getElementById("profilePhotoModal");
+const profilePhotoBackdrop = document.getElementById("profilePhotoBackdrop");
+const closeProfilePhotoModalBtn = document.getElementById(
+  "closeProfilePhotoModalBtn"
+);
+const largeProfilePhoto = document.getElementById("largeProfilePhoto");
 
 /* =========================
    MODIFICATION: Fonction pour afficher une modal personnalisée
@@ -167,6 +212,30 @@ function getCourseSemester(course) {
 }
 
 /* =========================
+   MODIFICATION: Fonction utilitaire pour récupérer les langues
+   On utilise d'abord languages, puis nationality comme fallback temporaire pour les anciens profils.
+========================= */
+function getUserLanguages(userData) {
+  return userData.languages || userData.nationality || "";
+}
+
+/* =========================
+   MODIFICATION: Fonction utilitaire pour récupérer la bonne photo de profil
+   Si l'utilisateur n'a pas encore de photo, on affiche une image par défaut.
+========================= */
+function getUserPhotoURL(userData) {
+  return userData.photoURL || DEFAULT_PROFILE_PHOTO;
+}
+
+/* =========================
+   MODIFICATION: Fonction pour afficher "-" si une valeur est vide
+   Cela rend l'affichage de la modal plus propre.
+========================= */
+function displayValue(value) {
+  return value ? value : "-";
+}
+
+/* =========================
    PROFIL COMPLET ?
 ========================= */
 
@@ -276,7 +345,7 @@ function createPartnerCard(user, commonCourses) {
   card.className = "partner-card";
 
   const fullname = user.fullname || "Unbekannter Nutzer";
-  const photoURL = user.photoURL || "../user-placeholder.jpg";
+  const photoURL = getUserPhotoURL(user);
   const faculty = user.faculty || "-";
   const fachbereich = user.fachbereich || "-";
   const semester = user.semester || "-";
@@ -395,38 +464,192 @@ function searchPartners(searchValue) {
 }
 
 /* =========================
-   PROFIL
+   PROFIL DÉTAILLÉ
 ========================= */
 
+/* =========================
+   MODIFICATION: Ouverture de la modal profil détaillé
+   Cette fonction remplace l'ancien showProfile() qui affichait seulement du texte dans showModal().
+========================= */
 function showProfile(user) {
+  if (
+    !partnerProfileModal ||
+    !partnerProfilePhoto ||
+    !partnerProfileName ||
+    !partnerProfileEmail ||
+    !partnerProfileFaculty ||
+    !partnerProfileFachbereich ||
+    !partnerProfileSemester ||
+    !partnerProfileLanguages ||
+    !partnerProfileCourses ||
+    !partnerProfileAbout
+  ) {
+    showModal(
+      "error",
+      "Profil konnte nicht geöffnet werden",
+      "Die Profil-Elemente fehlen im HTML. Bitte überprüfe partners.html."
+    );
+
+    return;
+  }
+
+  const fullname = user.fullname || "Unbekannter Nutzer";
+  const email = user.email || "";
+  const photoURL = getUserPhotoURL(user);
+  const languages = getUserLanguages(user);
   const courses = user.activeCourses || [];
+  const about = user.aboutText || user.about || "Keine Beschreibung angegeben.";
 
-  const courseText =
-    courses
-      .map((course) => {
-        const name = getCourseName(course);
-        const semester = getCourseSemester(course);
-        const faculty = getCourseFaculty(course);
+  partnerProfilePhoto.src = photoURL;
+  partnerProfilePhoto.alt = `Profilbild von ${fullname}`;
 
-        if (!name) return "";
+  partnerProfileName.textContent = fullname;
+  partnerProfileEmail.textContent = displayValue(email);
+  partnerProfileFaculty.textContent = displayValue(user.faculty);
+  partnerProfileFachbereich.textContent = displayValue(user.fachbereich);
+  partnerProfileSemester.textContent = displayValue(user.semester);
+  partnerProfileLanguages.textContent = displayValue(languages);
+  partnerProfileAbout.textContent = about;
 
-        return `${name}${semester ? " - " + semester : ""}${
-          faculty ? " - " + faculty : ""
-        }`;
-      })
-      .filter(Boolean)
-      .join("\n") || "-";
+  renderProfileCourses(courses);
 
-  showModal(
-    "info",
-    `Profil von ${user.fullname || "Unbekannter Nutzer"}`,
-    `Fakultät: ${user.faculty || "-"}\n` +
-      `Fachbereich: ${user.fachbereich || "-"}\n` +
-      `Semester: ${user.semester || "-"}\n\n` +
-      `Kurse:\n${courseText}\n\n` +
-      `Über mich:\n${user.aboutText || user.about || "-"}`
-  );
+  partnerProfileModal.classList.remove("hidden");
 }
+
+/* =========================
+   MODIFICATION: Affichage des cours dans la modal profil
+   Les cours sont affichés sous forme de petits badges lisibles.
+========================= */
+function renderProfileCourses(courses) {
+  partnerProfileCourses.innerHTML = "";
+
+  if (!Array.isArray(courses) || courses.length === 0) {
+    partnerProfileCourses.innerHTML =
+      '<p class="empty-message">Keine Kurse angegeben.</p>';
+    return;
+  }
+
+  courses.forEach((course) => {
+    const name = getCourseName(course);
+    const semester = getCourseSemester(course);
+    const faculty = getCourseFaculty(course);
+
+    if (!name) return;
+
+    const courseChip = document.createElement("span");
+    courseChip.className = "profile-course-chip";
+
+    const details = [];
+
+    if (semester) {
+      details.push(semester);
+    }
+
+    if (faculty) {
+      details.push(faculty);
+    }
+
+    courseChip.textContent =
+      details.length > 0 ? `${name} · ${details.join(" · ")}` : name;
+
+    partnerProfileCourses.appendChild(courseChip);
+  });
+
+  if (partnerProfileCourses.children.length === 0) {
+    partnerProfileCourses.innerHTML =
+      '<p class="empty-message">Keine Kurse angegeben.</p>';
+  }
+}
+
+/* =========================
+   MODIFICATION: Fermeture de la modal profil détaillé
+========================= */
+function closePartnerProfileModal() {
+  if (partnerProfileModal) {
+    partnerProfileModal.classList.add("hidden");
+  }
+}
+
+/* =========================
+   MODIFICATION: Ouverture de la photo de profil en grand
+========================= */
+function openProfilePhotoModal(photoURL, altText = "Profilbild groß") {
+  if (!profilePhotoModal || !largeProfilePhoto) {
+    return;
+  }
+
+  largeProfilePhoto.src = photoURL || DEFAULT_PROFILE_PHOTO;
+  largeProfilePhoto.alt = altText;
+
+  profilePhotoModal.classList.remove("hidden");
+}
+
+/* =========================
+   MODIFICATION: Fermeture de la modal photo
+========================= */
+function closeProfilePhotoModal() {
+  if (profilePhotoModal) {
+    profilePhotoModal.classList.add("hidden");
+  }
+}
+
+/* =========================
+   MODIFICATION: Événements de fermeture pour la modal profil détaillé
+   L'utilisateur peut fermer avec X ou en cliquant sur l'arrière-plan.
+========================= */
+if (closePartnerProfileModalBtn) {
+  closePartnerProfileModalBtn.addEventListener("click", () => {
+    closePartnerProfileModal();
+  });
+}
+
+if (partnerProfileBackdrop) {
+  partnerProfileBackdrop.addEventListener("click", () => {
+    closePartnerProfileModal();
+  });
+}
+
+/* =========================
+   MODIFICATION: Clic sur la photo de profil pour l'ouvrir en grand
+========================= */
+if (partnerProfilePhoto) {
+  partnerProfilePhoto.addEventListener("click", () => {
+    openProfilePhotoModal(
+      partnerProfilePhoto.src,
+      partnerProfilePhoto.alt || "Profilbild groß"
+    );
+  });
+}
+
+/* =========================
+   MODIFICATION: Événements de fermeture pour la modal photo
+   L'utilisateur peut fermer avec X ou en cliquant sur l'arrière-plan sombre.
+========================= */
+if (closeProfilePhotoModalBtn) {
+  closeProfilePhotoModalBtn.addEventListener("click", () => {
+    closeProfilePhotoModal();
+  });
+}
+
+if (profilePhotoBackdrop) {
+  profilePhotoBackdrop.addEventListener("click", () => {
+    closeProfilePhotoModal();
+  });
+}
+
+/* =========================
+   MODIFICATION: Fermeture des modals avec la touche Escape
+   Cela rend l'interface plus naturelle comme dans les applications modernes.
+========================= */
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  closeProfilePhotoModal();
+  closePartnerProfileModal();
+  closeModal();
+});
 
 /* =========================
    DEMANDE PARTENAIRE
@@ -508,6 +731,10 @@ async function sendRequest(user) {
     return;
   }
 
+  /* =========================
+     MODIFICATION: Ajout de updatedAt lors de la création de la demande
+     Cela permet de trier ou suivre plus facilement les demandes dans Firestore.
+  ========================= */
   await addDoc(collection(db, "partnerRequests"), {
     senderId,
     receiverId,
@@ -515,6 +742,7 @@ async function sendRequest(user) {
     status: "pending",
     seenBy: [senderId],
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
     acceptedAt: null,
     rejectedAt: null,
     endedAt: null,
@@ -610,7 +838,9 @@ if (logoutBtn) {
     try {
       // Modification : arrêt des badges avant la déconnexion.
       stopNotificationBadges();
+
       await signOut(auth);
+
       window.location.href = "../Login/login.html";
     } catch (error) {
       console.error(error);

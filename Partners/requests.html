@@ -94,6 +94,120 @@
       </div>
     </div>
 
+    <!-- =========================
+         MODIFICATION: Modal pour afficher le profil détaillé d'un utilisateur
+         Cette modal sera ouverte quand l'utilisateur clique sur "Profil ansehen"
+         dans une demande reçue ou envoyée.
+    ========================= -->
+    <div id="requestProfileModal" class="profile-modal hidden">
+      <div id="requestProfileBackdrop" class="profile-modal-backdrop"></div>
+
+      <div class="profile-modal-box">
+        <button
+          type="button"
+          id="closeRequestProfileModalBtn"
+          class="profile-modal-close"
+          aria-label="Profil schließen"
+        >
+          ×
+        </button>
+
+        <div class="profile-modal-header">
+          <!-- Modification : photo de profil cliquable pour l’agrandissement -->
+          <img
+            id="requestProfilePhoto"
+            class="profile-modal-photo"
+            src="../user-placeholder.jpg"
+            alt="Profilbild"
+          />
+
+          <div class="profile-modal-main-info">
+            <h2 id="requestProfileName">Name</h2>
+
+            <p id="requestProfileEmail" class="profile-modal-email">
+              E-Mail
+            </p>
+          </div>
+        </div>
+
+        <div class="profile-modal-content">
+          <div class="profile-info-grid">
+            <div class="profile-info-item">
+              <span class="profile-info-label">Fakultät</span>
+              <span id="requestProfileFaculty" class="profile-info-value">
+                -
+              </span>
+            </div>
+
+            <div class="profile-info-item">
+              <span class="profile-info-label">Fachbereich</span>
+              <span id="requestProfileFachbereich" class="profile-info-value">
+                -
+              </span>
+            </div>
+
+            <div class="profile-info-item">
+              <span class="profile-info-label">Semester</span>
+              <span id="requestProfileSemester" class="profile-info-value">
+                -
+              </span>
+            </div>
+
+            <!-- Modification : affichage du champ Sprachen dans le profil détaillé -->
+            <div class="profile-info-item">
+              <span class="profile-info-label">Sprachen</span>
+              <span id="requestProfileLanguages" class="profile-info-value">
+                -
+              </span>
+            </div>
+          </div>
+
+          <div class="profile-section">
+            <h3>Kurse</h3>
+
+            <!-- Modification : liste des cours de l'utilisateur -->
+            <div id="requestProfileCourses" class="profile-courses-list">
+              <p class="empty-message">Keine Kurse angegeben.</p>
+            </div>
+          </div>
+
+          <div class="profile-section">
+            <h3>Über mich</h3>
+
+            <p id="requestProfileAbout" class="profile-about-text">
+              Keine Beschreibung angegeben.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================
+         MODIFICATION: Modal pour afficher la photo de profil en grand
+         Elle s'ouvre quand l'utilisateur clique sur la photo dans le profil détaillé.
+    ========================= -->
+    <div id="profilePhotoModal" class="photo-modal hidden">
+      <div id="profilePhotoBackdrop" class="photo-modal-backdrop"></div>
+
+      <div class="photo-modal-box">
+        <button
+          type="button"
+          id="closeProfilePhotoModalBtn"
+          class="photo-modal-close"
+          aria-label="Foto schließen"
+        >
+          ×
+        </button>
+
+        <img
+          id="largeProfilePhoto"
+          class="large-profile-photo"
+          src="../user-placeholder.jpg"
+          alt="Profilbild groß"
+        />
+      </div>
+    </div>
+
     <script type="module" src="requests.js"></script>
   </body>
 </html>

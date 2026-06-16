@@ -174,6 +174,8 @@ header {
   object-fit: cover;
 
   background: #e5e7eb;
+
+  flex-shrink: 0;
 }
 
 .request-name {
@@ -192,6 +194,37 @@ header {
 
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* =========================
+   MODIFICATION: Bouton "Profil ansehen"
+   Ce bouton permettra d'ouvrir la modal détaillée du profil depuis une demande.
+========================= */
+.profile-btn {
+  border: 1px solid #cdd6e1;
+
+  padding: 0.5rem 1rem;
+
+  color: #0b2850;
+  background: #eef2f7;
+
+  border-radius: 6px;
+
+  cursor: pointer;
+
+  font-weight: 600;
+
+  transition:
+    transform 0.2s,
+    opacity 0.2s,
+    background 0.2s;
+}
+
+.profile-btn:hover {
+  background: #e2e8f0;
+  transform: translateY(-2px);
+  opacity: 0.95;
 }
 
 .accept-btn,
@@ -289,7 +322,6 @@ header {
     gap: 1rem;
   }
 }
-
 
 /* =========================
    MODIFICATION: Bouton pour terminer une collaboration acceptée
@@ -524,66 +556,6 @@ header {
 }
 
 /* =========================
-   RESPONSIVE MOBILE
-========================= */
-@media (max-width: 600px) {
-  .requests-section {
-    padding: 1.2rem;
-  }
-
-  .nav-text {
-    display: none;
-  }
-
-  .nav-btn {
-    width: 42px;
-    height: 42px;
-
-    justify-content: center;
-
-    padding: 0;
-
-    border-radius: 50%;
-  }
-
-  .nav-icon {
-    font-size: 1.15rem;
-  }
-
-  .request-actions {
-    flex-direction: column;
-  }
-
-  /* =========================
-     MODIFICATION: Les boutons d’action prennent toute la largeur sur mobile
-     Cela inclut accepter, refuser, terminer une collaboration et annuler une demande.
-  ========================= */
-  .accept-btn,
-  .reject-btn,
-  .end-btn,
-  .cancel-btn {
-    width: 100%;
-  }
-
-  /* =========================
-     MODIFICATION: Adaptation mobile de la modal
-     La boîte devient plus compacte sur les petits écrans.
-  ========================= */
-  .modal-box {
-    width: calc(100% - 2rem);
-    padding: 1.5rem;
-  }
-
-  .modal-box h2 {
-    font-size: 1.2rem;
-  }
-
-  .modal-box p {
-    font-size: 0.9rem;
-  }
-}
-
-/* =========================
    MODIFICATION: BADGES DE NOTIFICATION
    Petit badge rouge sur les boutons de navigation.
 ========================= */
@@ -618,4 +590,431 @@ header {
 
 .nav-badge.hidden {
   display: none;
+}
+
+/* =========================
+   MODIFICATION: MODAL PROFIL DÉTAILLÉ POUR REQUESTS
+   Cette modal affiche le profil complet de la personne liée à une demande.
+========================= */
+.profile-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.profile-modal.hidden {
+  display: none;
+}
+
+.profile-modal-backdrop {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(11, 40, 80, 0.42);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.profile-modal-box {
+  position: relative;
+  z-index: 1;
+
+  width: 100%;
+  max-width: 760px;
+  max-height: 90vh;
+
+  background: white;
+  border-radius: 20px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.28);
+
+  animation: modalFadeIn 0.25s ease;
+}
+
+.profile-modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+
+  width: 38px;
+  height: 38px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: rgba(255, 255, 255, 0.9);
+  color: #0b2850;
+
+  font-size: 1.7rem;
+  line-height: 1;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+
+  transition:
+    background 0.3s,
+    transform 0.2s;
+}
+
+.profile-modal-close:hover {
+  background: #ef4444;
+  color: white;
+  transform: scale(1.05);
+}
+
+/* =========================
+   MODIFICATION: En-tête du profil avec photo, nom et email
+========================= */
+.profile-modal-header {
+  background: linear-gradient(135deg, #0b2850, #163b70);
+  color: white;
+
+  padding: 2rem;
+
+  display: flex;
+  align-items: center;
+  gap: 1.3rem;
+}
+
+.profile-modal-photo {
+  width: 110px;
+  height: 110px;
+
+  border-radius: 50%;
+
+  object-fit: cover;
+
+  background: #e5e7eb;
+
+  border: 4px solid white;
+
+  cursor: pointer;
+
+  flex-shrink: 0;
+
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.profile-modal-photo:hover {
+  transform: scale(1.04);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.profile-modal-main-info h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.7rem;
+}
+
+.profile-modal-email {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+  word-break: break-word;
+}
+
+.profile-modal-content {
+  padding: 1.6rem 2rem 2rem;
+}
+
+/* =========================
+   MODIFICATION: Grille des informations du profil
+========================= */
+.profile-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.9rem;
+
+  margin-bottom: 1.5rem;
+}
+
+.profile-info-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+
+  padding: 0.9rem;
+}
+
+.profile-info-label {
+  display: block;
+
+  color: #6b7280;
+
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+
+  margin-bottom: 0.25rem;
+}
+
+.profile-info-value {
+  display: block;
+
+  color: #111827;
+
+  font-size: 0.95rem;
+  font-weight: 600;
+
+  word-break: break-word;
+}
+
+.profile-section {
+  margin-top: 1.4rem;
+}
+
+.profile-section h3 {
+  margin: 0 0 0.7rem;
+
+  color: #0b2850;
+  font-size: 1.05rem;
+}
+
+/* =========================
+   MODIFICATION: Liste des cours dans la modal profil
+========================= */
+.profile-courses-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.profile-course-chip {
+  background: #eef2f7;
+  color: #0b2850;
+
+  border: 1px solid #cdd6e1;
+  border-radius: 999px;
+
+  padding: 0.42rem 0.75rem;
+
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.profile-about-text {
+  margin: 0;
+
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+
+  padding: 1rem;
+
+  color: #374151;
+
+  line-height: 1.6;
+
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* =========================
+   MODIFICATION: MODAL PHOTO AGRANDIE
+   Cette modal s'ouvre quand l'utilisateur clique sur la photo du profil.
+========================= */
+.photo-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 11000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.photo-modal.hidden {
+  display: none;
+}
+
+.photo-modal-backdrop {
+  position: absolute;
+  inset: 0;
+
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.photo-modal-box {
+  position: relative;
+  z-index: 1;
+
+  max-width: 92vw;
+  max-height: 92vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-modal-close {
+  position: absolute;
+  top: -0.8rem;
+  right: -0.8rem;
+
+  width: 40px;
+  height: 40px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: white;
+  color: #0b2850;
+
+  font-size: 1.8rem;
+  line-height: 1;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
+
+  transition:
+    background 0.3s,
+    transform 0.2s;
+}
+
+.photo-modal-close:hover {
+  background: #ef4444;
+  color: white;
+  transform: scale(1.05);
+}
+
+.large-profile-photo {
+  max-width: 92vw;
+  max-height: 88vh;
+
+  border-radius: 18px;
+
+  object-fit: contain;
+
+  background: white;
+
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+
+  animation: modalFadeIn 0.25s ease;
+}
+
+/* =========================
+   RESPONSIVE MOBILE
+========================= */
+@media (max-width: 600px) {
+  .requests-section {
+    padding: 1.2rem;
+  }
+
+  .nav-text {
+    display: none;
+  }
+
+  .nav-btn {
+    width: 42px;
+    height: 42px;
+
+    justify-content: center;
+
+    padding: 0;
+
+    border-radius: 50%;
+  }
+
+  .nav-icon {
+    font-size: 1.15rem;
+  }
+
+  .request-actions {
+    flex-direction: column;
+  }
+
+  /* =========================
+     MODIFICATION: Les boutons d’action prennent toute la largeur sur mobile
+     Cela inclut accepter, refuser, terminer une collaboration, annuler une demande et voir le profil.
+  ========================= */
+  .profile-btn,
+  .accept-btn,
+  .reject-btn,
+  .end-btn,
+  .cancel-btn {
+    width: 100%;
+  }
+
+  /* =========================
+     MODIFICATION: Adaptation mobile de la modal personnalisée
+     La boîte devient plus compacte sur les petits écrans.
+  ========================= */
+  .modal-box {
+    width: calc(100% - 2rem);
+    padding: 1.5rem;
+  }
+
+  .modal-box h2 {
+    font-size: 1.2rem;
+  }
+
+  .modal-box p {
+    font-size: 0.9rem;
+  }
+
+  /* =========================
+     MODIFICATION: Adaptation mobile de la modal profil
+  ========================= */
+  .profile-modal-box {
+    max-height: 92vh;
+  }
+
+  .profile-modal-header {
+    padding: 1.6rem 1.2rem;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .profile-modal-photo {
+    width: 96px;
+    height: 96px;
+  }
+
+  .profile-modal-main-info h2 {
+    font-size: 1.35rem;
+  }
+
+  .profile-modal-content {
+    padding: 1.2rem;
+  }
+
+  .profile-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .photo-modal-close {
+    top: 0.4rem;
+    right: 0.4rem;
+  }
+
+  .large-profile-photo {
+    border-radius: 12px;
+  }
 }
