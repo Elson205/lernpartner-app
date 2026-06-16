@@ -55,13 +55,20 @@ const facultyInput = document.getElementById("faculty");
 const fachbereichInput = document.getElementById("fachbereich");
 const semesterInput = document.getElementById("semester");
 
-const nationalityInput = document.getElementById("nationalityInput");
-const countrySuggestions = document.getElementById("countrySuggestions");
+// Modification : remplacement définitif de nationality par languages.
+const languagesInput = document.getElementById("languages");
+
+// Modification : support de deux id possibles pour éviter de casser ton HTML actuel.
+// Id conseillé dans le HTML : languageSuggestions
+// Ancien id possible : countrySuggestions
+const languageSuggestions =
+  document.getElementById("languageSuggestions") ||
+  document.getElementById("countrySuggestions");
 
 /* =========================
-   MODIFICATION: Récupération des éléments HTML de la modal personnalisée
-   Cette modal remplace les alert() classiques par une popup au centre de la page.
+   MODAL PERSONNALISÉE
 ========================= */
+
 const customModal = document.getElementById("customModal");
 const modalBox = document.querySelector(".modal-box");
 const modalIcon = document.getElementById("modalIcon");
@@ -69,10 +76,6 @@ const modalTitle = document.getElementById("modalTitle");
 const modalMessage = document.getElementById("modalMessage");
 const modalCloseBtn = document.getElementById("modalCloseBtn");
 
-/* =========================
-   MODIFICATION: Fonction pour afficher une modal personnalisée
-   Le callback permet d’exécuter une action seulement après le clic sur OK.
-========================= */
 function showModal(type, title, message, callback = null) {
   if (
     !customModal ||
@@ -110,20 +113,12 @@ function showModal(type, title, message, callback = null) {
   };
 }
 
-/* =========================
-   MODIFICATION: Fonction pour fermer la modal personnalisée
-   Elle cache la popup après le clic sur OK.
-========================= */
 function closeModal() {
   if (customModal) {
     customModal.classList.add("hidden");
   }
 }
 
-/* =========================
-   MODIFICATION: Fermeture de la modal en cliquant sur l’arrière-plan flouté
-   L’utilisateur peut fermer la popup avec le bouton OK ou en cliquant derrière.
-========================= */
 if (customModal) {
   customModal.addEventListener("click", (event) => {
     if (event.target.classList.contains("modal-backdrop")) {
@@ -152,53 +147,45 @@ let currentUserData = null;
 let selectedPhotoFile = null;
 
 /* =========================
-   LISTE DES PAYS
-   Plus tard, on pourra remplacer ça par Data/countries.json
+   MODIFICATION: LISTE DES LANGUES
+   Cette liste remplace la liste des pays pour éviter une séparation par nationalité.
 ========================= */
 
-const countries = [
-  "Afghanistan",
-  "Ägypten",
-  "Albanien",
-  "Algerien",
-  "Angola",
-  "Argentinien",
-  "Belgien",
-  "Brasilien",
-  "Bulgarien",
-  "Burkina Faso",
-  "Kamerun",
-  "Kanada",
-  "China",
-  "Deutschland",
-  "Elfenbeinküste",
-  "Frankreich",
-  "Ghana",
-  "Indien",
-  "Indonesien",
-  "Iran",
-  "Italien",
-  "Japan",
-  "Kenia",
-  "Kongo",
-  "Marokko",
-  "Mexiko",
-  "Nigeria",
-  "Niederlande",
-  "Österreich",
-  "Polen",
-  "Portugal",
-  "Rumänien",
-  "Russland",
-  "Schweiz",
-  "Senegal",
-  "Spanien",
-  "Syrien",
-  "Tunesien",
-  "Türkei",
-  "Ukraine",
-  "USA",
-  "Vietnam",
+const languages = [
+  "Deutsch",
+  "Englisch",
+  "Französisch",
+  "Spanisch",
+  "Italienisch",
+  "Portugiesisch",
+  "Niederländisch",
+  "Polnisch",
+  "Ukrainisch",
+  "Russisch",
+  "Türkisch",
+  "Arabisch",
+  "Chinesisch",
+  "Japanisch",
+  "Koreanisch",
+  "Hindi",
+  "Bengalisch",
+  "Urdu",
+  "Persisch",
+  "Kurdisch",
+  "Rumänisch",
+  "Bulgarisch",
+  "Griechisch",
+  "Tschechisch",
+  "Ungarisch",
+  "Schwedisch",
+  "Norwegisch",
+  "Finnisch",
+  "Dänisch",
+  "Swahili",
+  "Hausa",
+  "Yoruba",
+  "Igbo",
+  "Amharisch",
   "Andere",
 ];
 
@@ -258,47 +245,63 @@ function setNeutral(id, message) {
   element.className = "neutral";
 }
 
+// Modification : helper pour supporter check-languages et l'ancien check-nationality.
+function setLanguageStatus(type, message) {
+  const languageCheckId = document.getElementById("check-languages")
+    ? "check-languages"
+    : "check-nationality";
+
+  if (type === "valid") {
+    setValid(languageCheckId, message);
+  } else if (type === "invalid") {
+    setInvalid(languageCheckId, message);
+  } else {
+    setNeutral(languageCheckId, message);
+  }
+}
+
 /* =========================
-   AUTOCOMPLETE NATIONALITÄT
+   MODIFICATION: AUTOCOMPLETE SPRACHEN
+   Remplace l'ancien autocomplete Nationalität.
 ========================= */
 
-function renderCountrySuggestions(searchValue) {
-  if (!countrySuggestions || !nationalityInput) return;
+function renderLanguageSuggestions(searchValue) {
+  if (!languageSuggestions || !languagesInput) return;
 
-  countrySuggestions.innerHTML = "";
+  languageSuggestions.innerHTML = "";
 
   const query = normalizeText(searchValue.trim());
 
   if (!query) {
-    countrySuggestions.classList.remove("open");
+    languageSuggestions.classList.remove("open");
     return;
   }
 
-  const filteredCountries = countries.filter((country) =>
-    normalizeText(country).startsWith(query)
+  const filteredLanguages = languages.filter((language) =>
+    normalizeText(language).startsWith(query)
   );
 
-  if (filteredCountries.length === 0) {
-    countrySuggestions.classList.remove("open");
+  if (filteredLanguages.length === 0) {
+    languageSuggestions.classList.remove("open");
     return;
   }
 
-  filteredCountries.forEach((country) => {
+  filteredLanguages.forEach((language) => {
     const item = document.createElement("div");
 
     item.className = "autocomplete-item";
-    item.textContent = country;
+    item.textContent = language;
 
     item.addEventListener("click", () => {
-      nationalityInput.value = country;
-      countrySuggestions.classList.remove("open");
+      languagesInput.value = language;
+      languageSuggestions.classList.remove("open");
       checkProfileValid();
     });
 
-    countrySuggestions.appendChild(item);
+    languageSuggestions.appendChild(item);
   });
 
-  countrySuggestions.classList.add("open");
+  languageSuggestions.classList.add("open");
 }
 
 /* =========================
@@ -311,7 +314,10 @@ function checkProfileValid() {
   const faculty = facultyInput.value.trim();
   const fachbereich = fachbereichInput.value.trim();
   const semester = semesterInput.value.trim();
-  const nationality = nationalityInput ? nationalityInput.value.trim() : "";
+
+  // Modification : récupération du champ languages au lieu de nationality.
+  const languagesValue = languagesInput ? languagesInput.value.trim() : "";
+
   const about = quill.getText().trim();
 
   const fullnameValid = fullname !== "";
@@ -360,10 +366,11 @@ function checkProfileValid() {
     setInvalid("check-semester", "❌ Semester fehlt");
   }
 
-  if (nationality) {
-    setValid("check-nationality", "✅ Nationalität hinzugefügt");
+  // Modification : le champ Sprachen est optionnel, comme Nationalität avant.
+  if (languagesValue) {
+    setLanguageStatus("valid", "✅ Sprachen hinzugefügt");
   } else {
-    setNeutral("check-nationality", "➖ Nationalität optional");
+    setLanguageStatus("neutral", "➖ Sprachen optional");
   }
 
   if (aboutValid) {
@@ -420,10 +427,6 @@ async function loadUserProfile() {
   const userRef = doc(db, "users", currentUser.uid);
   const userSnap = await getDoc(userRef);
 
-  /* =========================
-   MODIFICATION: Remplacement de alert() par une modal
-   L’utilisateur est redirigé vers Signup seulement après avoir cliqué sur OK.
-========================= */
   if (!userSnap.exists()) {
     showModal(
       "warning",
@@ -431,7 +434,7 @@ async function loadUserProfile() {
       "Profil nicht gefunden. Bitte registriere dich erneut.",
       () => {
         window.location.href = "../Signup/signup.html";
-      },
+      }
     );
 
     return;
@@ -446,8 +449,10 @@ async function loadUserProfile() {
   fachbereichInput.value = currentUserData.fachbereich || "";
   semesterInput.value = currentUserData.semester || "";
 
-  if (nationalityInput) {
-    nationalityInput.value = currentUserData.nationality || "";
+  // Modification : affichage de languages avec fallback temporaire sur nationality pour les anciens profils.
+  if (languagesInput) {
+    languagesInput.value =
+      currentUserData.languages || currentUserData.nationality || "";
   }
 
   profilePreview.src = currentUserData.photoURL || "../user-placeholder.jpg";
@@ -518,15 +523,11 @@ form.addEventListener("submit", async function (event) {
 
   const isValid = checkProfileValid();
 
-  /* =========================
-   MODIFICATION: Remplacement de alert() par une modal
-   Le message s’affiche au centre si les champs obligatoires ne sont pas remplis.
-========================= */
   if (!isValid) {
     showModal(
       "warning",
       "Pflichtfelder fehlen",
-      "Bitte fülle zuerst alle Pflichtfelder korrekt aus.",
+      "Bitte fülle zuerst alle Pflichtfelder korrekt aus."
     );
 
     return;
@@ -535,7 +536,9 @@ form.addEventListener("submit", async function (event) {
   const faculty = facultyInput.value.trim();
   const fachbereich = fachbereichInput.value.trim();
   const semester = semesterInput.value.trim();
-  const nationality = nationalityInput ? nationalityInput.value.trim() : "";
+
+  // Modification : sauvegarde des langues au lieu de la nationalité.
+  const languagesValue = languagesInput ? languagesInput.value.trim() : "";
 
   const aboutText = quill.getText().trim();
   const aboutHTML = quill.root.innerHTML;
@@ -556,7 +559,9 @@ form.addEventListener("submit", async function (event) {
       faculty,
       fachbereich,
       semester,
-      nationality,
+
+      // Modification : nouveau champ Firestore.
+      languages: languagesValue,
 
       aboutText,
       aboutHTML,
@@ -566,29 +571,21 @@ form.addEventListener("submit", async function (event) {
       updatedAt: serverTimestamp(),
     });
 
-    /* =========================
-   MODIFICATION: Modal de succès après sauvegarde du profil
-   La redirection vers Courses se fait seulement après le clic sur OK.
-========================= */
     showModal(
       "success",
       "Profil gespeichert",
       "Dein Profil wurde erfolgreich gespeichert.",
       () => {
         window.location.href = "../Courses/courses.html";
-      },
+      }
     );
   } catch (error) {
     console.error(error);
 
-    /* =========================
-   MODIFICATION: Remplacement de alert() par une modal d’erreur
-   Le message affiche clairement que la sauvegarde du profil a échoué.
-========================= */
     showModal(
       "error",
       "Speichern fehlgeschlagen",
-      "Profil konnte nicht gespeichert werden: " + error.message,
+      "Profil konnte nicht gespeichert werden: " + error.message
     );
 
     submitBtn.textContent = "Profil speichern";
@@ -604,16 +601,17 @@ facultyInput.addEventListener("input", checkProfileValid);
 fachbereichInput.addEventListener("input", checkProfileValid);
 semesterInput.addEventListener("input", checkProfileValid);
 
-if (nationalityInput) {
-  nationalityInput.addEventListener("input", () => {
-    renderCountrySuggestions(nationalityInput.value);
+// Modification : autocomplete du champ Sprachen.
+if (languagesInput) {
+  languagesInput.addEventListener("input", () => {
+    renderLanguageSuggestions(languagesInput.value);
     checkProfileValid();
   });
 }
 
 document.addEventListener("click", (event) => {
-  if (!event.target.closest(".autocomplete") && countrySuggestions) {
-    countrySuggestions.classList.remove("open");
+  if (!event.target.closest(".autocomplete") && languageSuggestions) {
+    languageSuggestions.classList.remove("open");
   }
 });
 
@@ -656,20 +654,16 @@ if (chatBtn) {
 if (logoutBtn) {
   logoutBtn.addEventListener("click", async () => {
     try {
-      // Modification : arrêt des badges avant la déconnexion.
       stopNotificationBadges();
       await signOut(auth);
       window.location.href = "../Login/login.html";
     } catch (error) {
       console.error(error);
-      /* =========================
-   MODIFICATION: Remplacement de alert() par une modal d’erreur
-   Ce message s’affiche si la déconnexion échoue.
-========================= */
+
       showModal(
         "error",
         "Abmeldung fehlgeschlagen",
-        "Du konntest nicht abgemeldet werden. Bitte versuche es erneut.",
+        "Du konntest nicht abgemeldet werden. Bitte versuche es erneut."
       );
     }
   });
@@ -680,10 +674,6 @@ if (logoutBtn) {
 ========================= */
 
 onAuthStateChanged(auth, async (user) => {
-  /* =========================
-   MODIFICATION: Message avant redirection si l’utilisateur n’est pas connecté
-   La redirection vers Login se fait seulement après le clic sur OK.
-========================= */
   if (!user) {
     showModal(
       "warning",
@@ -691,7 +681,7 @@ onAuthStateChanged(auth, async (user) => {
       "Bitte melde dich zuerst an.",
       () => {
         window.location.href = "../Login/login.html";
-      },
+      }
     );
 
     return;
@@ -699,7 +689,6 @@ onAuthStateChanged(auth, async (user) => {
 
   currentUser = user;
 
-  // Modification : démarrage des badges de notification après connexion.
   startNotificationBadges(currentUser.uid);
 
   await loadUserProfile();

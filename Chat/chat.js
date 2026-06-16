@@ -70,7 +70,7 @@ const profileName = document.getElementById("profileName");
 const profileFaculty = document.getElementById("profileFaculty");
 const profileFachbereich = document.getElementById("profileFachbereich");
 const profileSemester = document.getElementById("profileSemester");
-const profileNationality = document.getElementById("profileNationality");
+const profileLanguages = document.getElementById("profileLanguages");
 const profileLastSeen = document.getElementById("profileLastSeen");
 const requestStatus = document.getElementById("requestStatus");
 
@@ -351,7 +351,7 @@ function renderEmptyChat() {
   profileFaculty.textContent = "-";
   profileFachbereich.textContent = "-";
   profileSemester.textContent = "-";
-  profileNationality.textContent = "-";
+  profileLanguages.textContent = "-";
   profileLastSeen.textContent = "-";
 
   renderRequestStatus(null);
@@ -369,7 +369,7 @@ async function getUserData(uid) {
       faculty: "-",
       fachbereich: "-",
       semester: "-",
-      nationality: "-",
+      languages: "-",
       online: false,
       lastSeen: null,
     };
@@ -516,7 +516,8 @@ function renderProfilePanel(partner) {
   profileFaculty.textContent = partner.faculty || "-";
   profileFachbereich.textContent = partner.fachbereich || "-";
   profileSemester.textContent = partner.semester || "-";
-  profileNationality.textContent = partner.nationality || "-";
+  // Modification : affichage des langues, avec fallback temporaire sur nationality pour les anciens profils.
+  profileLanguages.textContent = partner.languages || partner.nationality || "-";
 
   profileLastSeen.textContent = partner.online
     ? "Jetzt online"

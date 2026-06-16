@@ -155,23 +155,24 @@
             <option value="7 oder mehr">7. Semester oder höher</option>
           </select>
 
-          <label for="nationalityInput">Nationalität</label>
-
+          <!-- Modification : remplacement de Nationalität par Sprachen avec autocomplete personnalisé -->
           <div class="autocomplete">
+            <label for="languages">Sprachen</label>
+
             <input
               type="text"
-              id="nationalityInput"
-              name="nationality"
-              placeholder="Land suchen, z.B. Kamerun"
+              id="languages"
+              name="languages"
+              placeholder="z. B. Deutsch, Englisch, Französisch"
               autocomplete="off"
             />
 
-            <div id="countrySuggestions" class="autocomplete-list"></div>
+            <div id="languageSuggestions" class="autocomplete-list"></div>
           </div>
 
           <small class="optional-info">
-            Optional: Hilft internationalen Studierenden, passende Lernpartner
-            zu finden.
+            Optional: Hilft Studierenden, passende Lernpartner für eine gute
+            Kommunikation zu finden.
           </small>
 
           <label for="editor">Über mich</label>
@@ -193,7 +194,7 @@
           <li id="check-faculty">➖ Fakultät eintragen</li>
           <li id="check-fachbereich">➖ Fachbereich eintragen</li>
           <li id="check-semester">➖ Semester hinzufügen</li>
-          <li id="check-nationality">➖ Nationalität optional</li>
+          <li id="check-languages">➖ Sprachen optional</li>
           <li id="check-about">➖ Beschreibung hinzufügen</li>
         </ul>
 
