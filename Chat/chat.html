@@ -135,6 +135,52 @@
             accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,audio/*,video/*"
           />
 
+          <!-- =========================
+     MODIFICATION: Bouton emoji et petite fenêtre d'emojis
+     L'utilisateur peut cliquer sur un emoji pour l'ajouter dans le message.
+========================= -->
+          <div class="emoji-wrapper">
+            <button
+              type="button"
+              id="emojiBtn"
+              class="emoji-btn"
+              title="Emoji einfügen"
+              aria-label="Emoji einfügen"
+            >
+              🙂
+            </button>
+
+            <div id="emojiPicker" class="emoji-picker hidden">
+              <button type="button" class="emoji-option">😀</button>
+              <button type="button" class="emoji-option">😄</button>
+              <button type="button" class="emoji-option">😂</button>
+              <button type="button" class="emoji-option">😊</button>
+              <button type="button" class="emoji-option">😍</button>
+              <button type="button" class="emoji-option">😅</button>
+
+              <button type="button" class="emoji-option">👍</button>
+              <button type="button" class="emoji-option">👎</button>
+              <button type="button" class="emoji-option">🙏</button>
+              <button type="button" class="emoji-option">💪</button>
+              <button type="button" class="emoji-option">🔥</button>
+              <button type="button" class="emoji-option">✅</button>
+
+              <button type="button" class="emoji-option">❌</button>
+              <button type="button" class="emoji-option">📚</button>
+              <button type="button" class="emoji-option">📝</button>
+              <button type="button" class="emoji-option">🧠</button>
+              <button type="button" class="emoji-option">💡</button>
+              <button type="button" class="emoji-option">🎯</button>
+
+              <button type="button" class="emoji-option">⏰</button>
+              <button type="button" class="emoji-option">📅</button>
+              <button type="button" class="emoji-option">💻</button>
+              <button type="button" class="emoji-option">☕</button>
+              <button type="button" class="emoji-option">🙌</button>
+              <button type="button" class="emoji-option">🤝</button>
+            </div>
+          </div>
+
           <!-- Modification : remplacement de input par textarea pour permettre les messages longs sur plusieurs lignes -->
           <textarea
             id="messageInput"

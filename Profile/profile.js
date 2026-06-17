@@ -376,7 +376,7 @@ function checkProfileValid() {
   if (aboutValid) {
     setValid("check-about", "✅ Beschreibung hinzugefügt");
   } else {
-    setInvalid("check-about", "❌ Beschreibung fehlt");
+    setNeutral("check-about", " ➖ Beschreibung optional");
   }
 
   const profileIsValid =
@@ -384,8 +384,7 @@ function checkProfileValid() {
     emailValid &&
     facultyValid &&
     fachbereichValid &&
-    semesterValid &&
-    aboutValid;
+    semesterValid;
 
   submitBtn.disabled = !profileIsValid;
 

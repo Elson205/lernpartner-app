@@ -384,16 +384,18 @@ header {
 }
 
 /* =========================
-   MODIFICATION: le formulaire ne doit jamais être poussé hors de l'écran
+   MODIFICATION: formulaire avec bouton fichier + bouton emoji + textarea + bouton envoyer
+   On ajoute une colonne de 46px pour le bouton emoji.
 ========================= */
 .message-form {
   display: grid;
-  grid-template-columns: 46px 1fr 100px;
+  grid-template-columns: 46px 46px 1fr 100px;
   gap: 0.7rem;
   padding: 1rem;
   border-top: 1px solid #d7dde8;
   background: white;
   flex-shrink: 0;
+  position: relative;
 }
 
 .attach-btn {
@@ -1385,5 +1387,155 @@ header {
 
   .media-item img {
     height: 115px;
+  }
+}
+
+/* =========================
+   MODIFICATION: BOUTON EMOJI DANS LE CHAT
+   Le bouton emoji est placé entre la pièce jointe et le champ de message.
+========================= */
+.emoji-wrapper {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.emoji-btn {
+  width: 46px;
+  height: 100%;
+
+  border: 1px solid #cfd7e3;
+  background: white;
+  color: #0b2850;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  display: grid;
+  place-items: center;
+
+  font-size: 1.25rem;
+
+  transition:
+    background 0.2s,
+    transform 0.2s,
+    border 0.2s;
+}
+
+.emoji-btn:hover {
+  background: #eef2f7;
+  border-color: #0b2850;
+  transform: translateY(-2px);
+}
+
+/* =========================
+   MODIFICATION: PICKER EMOJI
+   Petite boîte qui s'ouvre au-dessus du formulaire.
+========================= */
+.emoji-picker {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 12px);
+
+  width: 260px;
+
+  background: white;
+  border: 1px solid #d7dde8;
+  border-radius: 14px;
+
+  padding: 0.7rem;
+
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.35rem;
+
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+
+  z-index: 3500;
+}
+
+.emoji-picker.hidden {
+  display: none;
+}
+
+.emoji-option {
+  width: 34px;
+  height: 34px;
+
+  border: none;
+  border-radius: 8px;
+
+  background: #f8fafc;
+
+  cursor: pointer;
+
+  font-size: 1.15rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+
+.emoji-option:hover {
+  background: #eaf3ff;
+  transform: scale(1.12);
+}
+
+/* =========================
+   MODIFICATION: état désactivé du bouton emoji
+   Quand la Lernpartnerschaft est terminée, le bouton emoji est aussi désactivé.
+========================= */
+.message-form.disabled .emoji-btn {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: #e5e7eb;
+}
+
+.emoji-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: #e5e7eb;
+}
+
+/* =========================
+   MODIFICATION: responsive du formulaire avec emoji
+========================= */
+@media (max-width: 760px) {
+  .message-form {
+    grid-template-columns: 42px 42px 1fr 78px;
+    gap: 0.45rem;
+    padding: 0.75rem;
+  }
+
+  .emoji-btn {
+    width: 42px;
+  }
+
+  .emoji-picker {
+    width: 230px;
+    grid-template-columns: repeat(6, 1fr);
+    left: -52px;
+  }
+
+  .emoji-option {
+    width: 30px;
+    height: 30px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .message-form {
+    grid-template-columns: 40px 40px 1fr 68px;
+  }
+
+  .emoji-picker {
+    width: 210px;
+    left: -48px;
   }
 }

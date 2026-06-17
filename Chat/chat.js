@@ -66,6 +66,14 @@ const filePreview = document.getElementById("filePreview");
 const sendMessageBtn = document.getElementById("sendMessageBtn");
 const endedChatNotice = document.getElementById("endedChatNotice");
 
+/* =========================
+   MODIFICATION: récupération des éléments du sélecteur d'emojis
+   Ces éléments permettent d'ouvrir le picker et d'insérer un emoji dans le textarea.
+========================= */
+const emojiBtn = document.getElementById("emojiBtn");
+const emojiPicker = document.getElementById("emojiPicker");
+const emojiOptions = document.querySelectorAll(".emoji-option");
+
 const profilePhoto = document.getElementById("profilePhoto");
 const profileName = document.getElementById("profileName");
 const profileFaculty = document.getElementById("profileFaculty");
@@ -320,6 +328,17 @@ function updateMessageFormState(chat) {
 
   if (sendMessageBtn) {
     sendMessageBtn.disabled = !hasSelectedChat || ended;
+  }
+
+    /* =========================
+    MODIFICATION: désactivation du bouton emoji si aucun chat n'est sélectionné ou si le chat est terminé
+  ========================= */
+  if (emojiBtn) {
+    emojiBtn.disabled = !hasSelectedChat || ended;
+  }
+
+  if ((!hasSelectedChat || ended) && emojiPicker) {
+    emojiPicker.classList.add("hidden");
   }
 
   messageForm.classList.toggle("disabled", !hasSelectedChat || ended);
@@ -636,6 +655,52 @@ function renderProfilePanel(partner) {
 }
 
 /* =========================
+   MODIFICATION: ouvrir / fermer le sélecteur d'emojis
+========================= */
+function toggleEmojiPicker() {
+  if (!emojiPicker || !emojiBtn) return;
+
+  if (emojiBtn.disabled) {
+    return;
+  }
+
+  emojiPicker.classList.toggle("hidden");
+}
+
+function closeEmojiPicker() {
+  if (!emojiPicker) return;
+
+  emojiPicker.classList.add("hidden");
+}
+
+/* =========================
+   MODIFICATION: insérer un emoji à la position du curseur
+   L'emoji est ajouté dans le textarea sans effacer le message déjà écrit.
+========================= */
+function insertEmojiIntoMessage(emoji) {
+  if (!messageInput || messageInput.disabled) {
+    return;
+  }
+
+  const start = messageInput.selectionStart;
+  const end = messageInput.selectionEnd;
+
+  const currentText = messageInput.value;
+
+  messageInput.value =
+    currentText.slice(0, start) + emoji + currentText.slice(end);
+
+  const newCursorPosition = start + emoji.length;
+
+  messageInput.selectionStart = newCursorPosition;
+  messageInput.selectionEnd = newCursorPosition;
+
+  messageInput.focus();
+
+  resizeMessageInput();
+}
+
+/* =========================
    MODIFICATION: ouvrir/fermer le menu trois points
 ========================= */
 function toggleChatOptionsMenu() {
@@ -921,6 +986,39 @@ function searchInsideActiveConversation(searchValue) {
     )
     .join("");
 }
+
+/* =========================
+   MODIFICATION: événements du sélecteur d'emojis
+   Clic sur 🙂 ouvre le picker, clic sur un emoji l'insère dans le message.
+========================= */
+if (emojiBtn) {
+  emojiBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleEmojiPicker();
+  });
+}
+
+emojiOptions.forEach((emojiOption) => {
+  emojiOption.addEventListener("click", (event) => {
+    event.stopPropagation();
+
+    insertEmojiIntoMessage(emojiOption.textContent);
+  });
+});
+
+/* =========================
+   MODIFICATION: fermeture du picker emoji en cliquant ailleurs
+========================= */
+document.addEventListener("click", (event) => {
+  if (!emojiPicker || !emojiBtn) return;
+
+  const clickedInsidePicker = emojiPicker.contains(event.target);
+  const clickedEmojiButton = emojiBtn.contains(event.target);
+
+  if (!clickedInsidePicker && !clickedEmojiButton) {
+    closeEmojiPicker();
+  }
+});
 
 if (showMediaFilesBtn) {
   showMediaFilesBtn.addEventListener("click", showMediaAndFiles);
@@ -1633,6 +1731,7 @@ document.addEventListener("keydown", (event) => {
 
   closePhotoModalWindow();
   closeChatOptionsMenu();
+  closeEmojiPicker();
   closeChatContentModal(mediaFilesModal);
   closeChatContentModal(sharedLinksModal);
   closeChatContentModal(messageSearchModal);
