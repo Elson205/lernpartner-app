@@ -63,6 +63,20 @@
               autocomplete="off"
             />
           </div>
+
+          <!-- =========================
+               MODIFICATION: bouton pour créer une nouvelle Lerngruppe
+               Le bouton ouvre une modal avec uniquement les partenaires acceptés.
+          ========================= -->
+          <button
+            type="button"
+            id="newGroupBtn"
+            class="new-group-btn"
+            title="Neue Lerngruppe erstellen"
+            aria-label="Neue Lerngruppe erstellen"
+          >
+            👥
+          </button>
         </div>
 
         <div id="contactsList" class="contacts-list">
@@ -361,6 +375,54 @@
         </div>
       </div>
     </div>
+
+    <!-- =========================
+         MODIFICATION: Modal de création de groupe d'étude
+         Elle affiche uniquement les partenaires dont la demande est acceptée.
+    ========================= -->
+    <div id="groupModal" class="chat-content-modal hidden">
+      <div id="groupModalBackdrop" class="chat-content-backdrop"></div>
+
+      <div class="chat-content-box group-modal-box">
+        <div class="chat-content-header">
+          <h2>Neue Lerngruppe erstellen</h2>
+
+          <button
+            type="button"
+            id="closeGroupModalBtn"
+            class="chat-content-close"
+            aria-label="Lerngruppe schließen"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="groupForm" class="group-form">
+          <label for="groupNameInput">Gruppenname</label>
+          <input
+            type="text"
+            id="groupNameInput"
+            placeholder="z.B. Informatik Prüfungsvorbereitung"
+            autocomplete="off"
+            maxlength="80"
+          />
+
+          <div class="group-members-header">
+            <strong>Teilnehmer auswählen</strong>
+            <span id="groupMembersCounter">0 ausgewählt</span>
+          </div>
+
+          <div id="acceptedPartnersList" class="accepted-partners-list">
+            <p class="empty-message">Partner werden geladen...</p>
+          </div>
+
+          <button type="submit" id="createGroupBtn" class="create-group-btn">
+            Gruppe erstellen
+          </button>
+        </form>
+      </div>
+    </div>
+
 
     <script type="module" src="chat.js"></script>
   </body>

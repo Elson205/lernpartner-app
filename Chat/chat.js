@@ -50,6 +50,20 @@ const chatPage = document.getElementById("chatPage");
 const contactsList = document.getElementById("contactsList");
 const contactSearchInput = document.getElementById("contactSearchInput");
 
+/* =========================
+   MODIFICATION: éléments HTML pour la création des groupes d'étude
+   Ces éléments viennent de la nouvelle modal ajoutée dans chat.html.
+========================= */
+const newGroupBtn = document.getElementById("newGroupBtn");
+const groupModal = document.getElementById("groupModal");
+const groupModalBackdrop = document.getElementById("groupModalBackdrop");
+const closeGroupModalBtn = document.getElementById("closeGroupModalBtn");
+const groupForm = document.getElementById("groupForm");
+const groupNameInput = document.getElementById("groupNameInput");
+const acceptedPartnersList = document.getElementById("acceptedPartnersList");
+const groupMembersCounter = document.getElementById("groupMembersCounter");
+const createGroupBtn = document.getElementById("createGroupBtn");
+
 const chatPartnerName = document.getElementById("chatPartnerName");
 const chatPartnerStatus = document.getElementById("chatPartnerStatus");
 const activeText = document.getElementById("activeText");
@@ -82,6 +96,7 @@ const profileSemester = document.getElementById("profileSemester");
 const profileLanguages = document.getElementById("profileLanguages");
 const profileLastSeen = document.getElementById("profileLastSeen");
 const requestStatus = document.getElementById("requestStatus");
+const profileInfo = document.querySelector(".profile-info");
 
 const profileBtn = document.getElementById("profileBtn");
 const coursesBtn = document.getElementById("coursesBtn");
@@ -157,6 +172,12 @@ let attachedFile = null;
 ========================= */
 let activeMessages = [];
 
+/* =========================
+   MODIFICATION: cache des partenaires acceptés pour créer une Lerngruppe
+   Il évite de recharger les mêmes profils tant que la modal reste ouverte.
+========================= */
+let acceptedPartnersForGroup = [];
+
 const urlParams = new URLSearchParams(window.location.search);
 
 // Modification : chatId reçu depuis Requests après acceptation d'une demande.
@@ -171,6 +192,9 @@ const FILE_LIMITS = {
   audio: 100 * 1024 * 1024,
   video: 500 * 1024 * 1024,
 };
+
+const DEFAULT_PROFILE_PHOTO = "../user-placeholder.jpg";
+const DEFAULT_GROUP_ICON = "👥";
 
 const ALLOWED_DOCUMENT_TYPES = [
   "application/pdf",
@@ -298,11 +322,59 @@ function isChatEnded(chat) {
   return chat?.active === false || chat?.requestStatus === "ended";
 }
 
+/* =========================
+   MODIFICATION: helpers pour distinguer chat privé et groupe
+   Les anciens chats privés sans champ type restent supportés avec le fallback "private".
+========================= */
+function getChatType(chat) {
+  return chat?.type || "private";
+}
+
+function isGroupChat(chat) {
+  return getChatType(chat) === "group";
+}
+
+function getChatMembers(chat) {
+  return Array.isArray(chat?.members) ? chat.members : [];
+}
+
+function getMemberNameById(chat, uid) {
+  const member = getChatMembers(chat).find((user) => user.id === uid);
+
+  return member?.fullname || member?.email || "Kontakt";
+}
+
+/* =========================
+   MODIFICATION: alias pour afficher le nom d'un membre dans les messages de groupe
+   Cette fonction évite l'erreur si renderMessages utilise getMemberName().
+========================= */
+function getMemberName(chat, uid) {
+  return getMemberNameById(chat, uid);
+}
+
+function getMemberPhotoById(chat, uid) {
+  const member = getChatMembers(chat).find((user) => user.id === uid);
+
+  return member?.photoURL || DEFAULT_PROFILE_PHOTO;
+}
+
 // Modification : met à jour le badge de statut dans le profil de droite.
 function renderRequestStatus(chat) {
   if (!requestStatus) return;
 
   requestStatus.classList.remove("confirmed", "ended");
+
+  if (!chat) {
+    requestStatus.textContent = "-";
+    requestStatus.classList.add("confirmed");
+    return;
+  }
+
+  if (isGroupChat(chat)) {
+    requestStatus.textContent = "Lerngruppe aktiv";
+    requestStatus.classList.add("confirmed");
+    return;
+  }
 
   if (isChatEnded(chat)) {
     requestStatus.textContent = "Lernpartnerschaft beendet";
@@ -330,7 +402,7 @@ function updateMessageFormState(chat) {
     sendMessageBtn.disabled = !hasSelectedChat || ended;
   }
 
-    /* =========================
+  /* =========================
     MODIFICATION: désactivation du bouton emoji si aucun chat n'est sélectionné ou si le chat est terminé
   ========================= */
   if (emojiBtn) {
@@ -425,13 +497,18 @@ function renderEmptyChat() {
   messagesList.innerHTML =
     '<p class="empty-message">Wähle einen Kontakt aus.</p>';
 
-  profilePhoto.src = "../user-placeholder.jpg";
+  profilePhoto.src = DEFAULT_PROFILE_PHOTO;
   profileName.textContent = "-";
-  profileFaculty.textContent = "-";
-  profileFachbereich.textContent = "-";
-  profileSemester.textContent = "-";
-  profileLanguages.textContent = "-";
-  profileLastSeen.textContent = "-";
+
+  if (profileInfo) {
+    profileInfo.innerHTML = `
+      <p><strong>Fakultät:</strong> <span>-</span></p>
+      <p><strong>Fachbereich:</strong> <span>-</span></p>
+      <p><strong>Semester:</strong> <span>-</span></p>
+      <p><strong>Sprachen:</strong> <span>-</span></p>
+      <p><strong>Zuletzt online:</strong> <span>-</span></p>
+    `;
+  }
 
   renderRequestStatus(null);
   updateMessageFormState(null);
@@ -444,7 +521,7 @@ async function getUserData(uid) {
     return {
       id: uid,
       fullname: "Unbekannter Nutzer",
-      photoURL: "../user-placeholder.jpg",
+      photoURL: DEFAULT_PROFILE_PHOTO,
       faculty: "-",
       fachbereich: "-",
       semester: "-",
@@ -490,8 +567,25 @@ async function getRecentMessagesForSearch(chatId) {
 async function enrichChatsWithPartnerData(chatDocs) {
   const enriched = await Promise.all(
     chatDocs.map(async (chat) => {
-      const partner = await getPartnerData(chat);
       const recentMessages = await getRecentMessagesForSearch(chat.id);
+
+      /* =========================
+         MODIFICATION: les groupes n'ont pas de partner unique
+         On charge donc tous les membres et on garde la logique privée pour les anciens chats.
+      ========================= */
+      if (isGroupChat(chat)) {
+        const members = await Promise.all(
+          (chat.participants || []).map((memberId) => getUserData(memberId))
+        );
+
+        return {
+          ...chat,
+          members,
+          recentMessages,
+        };
+      }
+
+      const partner = await getPartnerData(chat);
 
       return {
         ...chat,
@@ -501,7 +595,7 @@ async function enrichChatsWithPartnerData(chatDocs) {
     })
   );
 
-  return enriched.filter((chat) => chat.partner);
+  return enriched.filter((chat) => isGroupChat(chat) || chat.partner);
 }
 
 /* =========================
@@ -531,8 +625,16 @@ function renderContacts(list = chats, searchValue = "") {
   }
 
   list.forEach((chat) => {
-    const partner = chat.partner;
     const unread = chat.unreadCount?.[currentUser.uid] || 0;
+    const isGroup = isGroupChat(chat);
+    const partner = chat.partner;
+
+    const chatName = isGroup
+      ? chat.groupName || "Lerngruppe"
+      : partner?.fullname || "Kontakt";
+
+    const avatarURL = isGroup ? "" : partner?.photoURL || DEFAULT_PROFILE_PHOTO;
+    const memberCount = isGroup ? (chat.participants || []).length : 0;
 
     const item = document.createElement("div");
 
@@ -545,22 +647,30 @@ function renderContacts(list = chats, searchValue = "") {
 
     item.innerHTML = `
       <div class="contact-avatar-wrapper">
-        <img
-          class="contact-avatar"
-          src="${escapeHTML(partner.photoURL || "../user-placeholder.jpg")}"
-          alt="Profilbild von ${escapeHTML(partner.fullname || "Kontakt")}"
-        />
+        ${
+          isGroup
+            ? `<div class="contact-avatar group-avatar" aria-label="Lerngruppe">${DEFAULT_GROUP_ICON}</div>`
+            : `<img
+                class="contact-avatar"
+                src="${escapeHTML(avatarURL)}"
+                alt="Profilbild von ${escapeHTML(chatName)}"
+              />`
+        }
 
-        ${partner.online ? '<span class="contact-online-dot"></span>' : ""}
+        ${!isGroup && partner?.online ? '<span class="contact-online-dot"></span>' : ""}
       </div>
 
       <div>
         <h3 class="contact-name">
-          ${escapeHTML(partner.fullname || "Kontakt")}
+          ${isGroup ? "👥 " : ""}${escapeHTML(chatName)}
           ${unread > 0 ? `<span class="unread-badge">${unread}</span>` : ""}
         </h3>
 
-        <p class="contact-preview">${escapeHTML(lastMessage)}</p>
+        <p class="contact-preview">${
+          isGroup && !chat.lastMessage
+            ? `${memberCount} Mitglieder`
+            : escapeHTML(lastMessage)
+        }</p>
 
         ${
           matchingPreview
@@ -574,16 +684,18 @@ function renderContacts(list = chats, searchValue = "") {
       <span class="contact-time">${lastMessageTime}</span>
     `;
 
-    const avatar = item.querySelector(".contact-avatar");
+        const avatar = item.querySelector(".contact-avatar");
 
-    avatar.addEventListener("click", (event) => {
-      event.stopPropagation();
+    if (!isGroup && avatar) {
+      avatar.addEventListener("click", (event) => {
+        event.stopPropagation();
 
-      openPhotoModal(
-        partner.photoURL || "../user-placeholder.jpg",
-        partner.fullname || "Kontakt"
-      );
-    });
+        openPhotoModal(
+          partner.photoURL || DEFAULT_PROFILE_PHOTO,
+          partner.fullname || "Kontakt"
+        );
+      });
+    }
 
     item.addEventListener("click", () => {
       selectChat(chat.id);
@@ -594,16 +706,30 @@ function renderContacts(list = chats, searchValue = "") {
   });
 }
 
-function renderChatHeader(partner) {
-  chatPartnerName.textContent = `Chat mit ${partner.fullname || "Kontakt"}`;
+function renderChatHeader(chat) {
+  if (isGroupChat(chat)) {
+    const membersCount = (chat.participants || []).length;
 
-  if (partner.online) {
+    chatPartnerName.textContent = chat.groupName || "Lerngruppe";
+    chatPartnerStatus.textContent = `${membersCount} Mitglieder`;
+
+    activeText.textContent = "Gruppe";
+    activeDot.classList.remove("offline");
+
+    return;
+  }
+
+  const partner = chat.partner || activePartner;
+
+  chatPartnerName.textContent = `Chat mit ${partner?.fullname || "Kontakt"}`;
+
+  if (partner?.online) {
     chatPartnerStatus.textContent = "Jetzt online";
     activeText.textContent = "Active";
     activeDot.classList.remove("offline");
   } else {
     chatPartnerStatus.textContent = `Zuletzt online: ${formatDate(
-      partner.lastSeen
+      partner?.lastSeen
     )}`;
     activeText.textContent = "Offline";
     activeDot.classList.add("offline");
@@ -611,7 +737,7 @@ function renderChatHeader(partner) {
 }
 
 function openPhotoModal(photoURL, name) {
-  photoModalImage.src = photoURL || "../user-placeholder.jpg";
+  photoModalImage.src = photoURL || DEFAULT_PROFILE_PHOTO;
   photoModalName.textContent = name || "Profilbild";
 
   // Modification : compatibilité avec le nouveau HTML qui utilise hidden.
@@ -633,25 +759,88 @@ photoModal.addEventListener("click", (event) => {
 });
 
 function renderProfilePanel(partner) {
-  profilePhoto.src = partner.photoURL || "../user-placeholder.jpg";
+  profilePhoto.src = partner.photoURL || DEFAULT_PROFILE_PHOTO;
   profileName.textContent = partner.fullname || "Kontakt";
-  profileFaculty.textContent = partner.faculty || "-";
-  profileFachbereich.textContent = partner.fachbereich || "-";
-  profileSemester.textContent = partner.semester || "-";
 
-  // Modification : affichage des langues, avec fallback temporaire sur nationality pour les anciens profils.
-  profileLanguages.textContent = partner.languages || partner.nationality || "-";
+  if (profileInfo) {
+    profileInfo.innerHTML = `
+      <p><strong>Fakultät:</strong> <span>${escapeHTML(partner.faculty || "-")}</span></p>
 
-  profileLastSeen.textContent = partner.online
-    ? "Jetzt online"
-    : formatDate(partner.lastSeen);
+      <p>
+        <strong>Fachbereich:</strong>
+        <span>${escapeHTML(partner.fachbereich || "-")}</span>
+      </p>
+
+      <p><strong>Semester:</strong> <span>${escapeHTML(partner.semester || "-")}</span></p>
+
+      <p>
+        <strong>Sprachen:</strong>
+        <span>${escapeHTML(partner.languages || partner.nationality || "-")}</span>
+      </p>
+
+      <p>
+        <strong>Zuletzt online:</strong>
+        <span>${escapeHTML(partner.online ? "Jetzt online" : formatDate(partner.lastSeen))}</span>
+      </p>
+    `;
+  }
 
   profilePhoto.onclick = () => {
     openPhotoModal(
-      partner.photoURL || "../user-placeholder.jpg",
+      partner.photoURL || DEFAULT_PROFILE_PHOTO,
       partner.fullname || "Kontakt"
     );
   };
+}
+
+/* =========================
+   MODIFICATION: panneau de droite pour les groupes d'étude
+   Au lieu du profil d'un seul partenaire, il affiche les membres du groupe.
+========================= */
+function renderGroupPanel(chat) {
+  const members = getChatMembers(chat);
+
+  profilePhoto.src = DEFAULT_PROFILE_PHOTO;
+  profileName.textContent = chat.groupName || "Lerngruppe";
+
+  const membersHTML =
+    members.length > 0
+      ? members
+          .map(
+            (member) => `
+              <div class="group-member-item">
+                <img
+                  src="${escapeHTML(member.photoURL || DEFAULT_PROFILE_PHOTO)}"
+                  alt="Profilbild von ${escapeHTML(member.fullname || "Mitglied")}"
+                />
+
+                <span>
+                  ${escapeHTML(member.fullname || member.email || "Mitglied")}
+                  ${
+                    chat.admins?.includes(member.id)
+                      ? "<strong> · Admin</strong>"
+                      : ""
+                  }
+                </span>
+              </div>
+            `
+          )
+          .join("")
+      : '<p class="empty-message">Keine Mitglieder gefunden.</p>';
+
+  if (profileInfo) {
+    profileInfo.innerHTML = `
+      <p><strong>Typ:</strong> <span>Lerngruppe</span></p>
+      <p><strong>Mitglieder:</strong> <span>${members.length}</span></p>
+      <p><strong>Status:</strong> <span>Aktiv</span></p>
+
+      <div class="group-member-list">
+        ${membersHTML}
+      </div>
+    `;
+  }
+
+  profilePhoto.onclick = null;
 }
 
 /* =========================
@@ -937,10 +1126,7 @@ function highlightSearchTerm(text, searchValue) {
   const escapedSearch = searchValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const regex = new RegExp(`(${escapedSearch})`, "gi");
 
-  return safeText.replace(
-    regex,
-    '<span class="search-highlight">$1</span>'
-  );
+  return safeText.replace(regex, '<span class="search-highlight">$1</span>');
 }
 
 /* =========================
@@ -970,20 +1156,27 @@ function searchInsideActiveConversation(searchValue) {
   }
 
   messageSearchResults.innerHTML = results
-    .map(
-      (message) => `
+    .map((message) => {
+      const senderName =
+        message.senderId === currentUser.uid
+          ? "Du"
+          : isGroupChat(activeChat)
+            ? getMemberNameById(activeChat, message.senderId)
+            : activePartner?.fullname || "Kontakt";
+
+      return `
         <div class="search-result-item">
           <p class="search-result-text">
             ${highlightSearchTerm(message.text || "", searchValue)}
           </p>
 
           <div class="search-result-meta">
-            ${message.senderId === currentUser.uid ? "Du" : activePartner?.fullname || "Kontakt"}
+            ${escapeHTML(senderName)}
             · ${formatDate(message.createdAt)}
           </div>
         </div>
-      `
-    )
+      `;
+    })
     .join("");
 }
 
@@ -1183,21 +1376,38 @@ function renderMessages(messages) {
     const isDeleted = message.deleted === true;
 
     const readBy = message.readBy || [];
-    const partnerHasRead = activePartner && readBy.includes(activePartner.id);
+    const otherParticipantIds = (activeChat?.participants || []).filter(
+      (participantId) => participantId !== currentUser.uid
+    );
+
+    const allOtherParticipantsHaveRead = otherParticipantIds.every(
+      (participantId) => readBy.includes(participantId)
+    );
 
     const checkMark =
-      message.senderId === currentUser.uid ? (partnerHasRead ? "✓✓" : "✓") : "";
+      message.senderId === currentUser.uid
+        ? allOtherParticipantsHaveRead
+          ? "✓✓"
+          : "✓"
+        : "";
+
+    const senderNameHtml =
+      isGroupChat(activeChat) && message.senderId !== currentUser.uid && !isDeleted
+        ? `<div class="message-sender-name">${escapeHTML(
+            getMemberName(activeChat, message.senderId)
+          )}</div>`
+        : "";
 
     row.innerHTML = `
       <div class="message-content">
         <div class="message-bubble">
+          ${senderNameHtml}
           ${
             isDeleted
               ? `<div class="message-deleted">Diese Nachricht wurde gelöscht.</div>`
               : `
                 ${safeText ? `<div class="message-text">${safeText}</div>` : ""}
-
-                ${
+                                ${
                   message.fileURL && isImage
                     ? `<a href="${escapeHTML(message.fileURL)}" target="_blank" rel="noopener noreferrer">
                          <img src="${escapeHTML(message.fileURL)}" class="chat-image" alt="${safeFileName}" />
@@ -1324,10 +1534,16 @@ function subscribeToChats() {
 
         if (updatedActiveChat) {
           activeChat = updatedActiveChat;
-          activePartner = updatedActiveChat.partner;
+          activePartner = updatedActiveChat.partner || null;
 
-          renderChatHeader(activePartner);
-          renderProfilePanel(activePartner);
+          renderChatHeader(activeChat);
+
+          if (isGroupChat(activeChat)) {
+            renderGroupPanel(activeChat);
+          } else {
+            renderProfilePanel(activePartner);
+          }
+
           renderRequestStatus(activeChat);
           updateMessageFormState(activeChat);
           renderContacts(chats, contactSearchInput.value);
@@ -1364,8 +1580,7 @@ function subscribeToMessages(chatId) {
         id: messageDocument.id,
         ...messageDocument.data(),
       }));
-
-      // Modification : sauvegarde locale des messages actifs pour médias/liens/recherche.
+            // Modification : sauvegarde locale des messages actifs pour médias/liens/recherche.
       activeMessages = messages;
 
       renderMessages(messages);
@@ -1428,7 +1643,7 @@ async function selectChat(chatId) {
   }
 
   activeChat = chat;
-  activePartner = chat.partner;
+  activePartner = chat.partner || null;
   activeMessages = [];
 
   attachedFile = null;
@@ -1441,8 +1656,16 @@ async function selectChat(chatId) {
   closeChatContentModal(messageSearchModal);
 
   renderContacts(chats, contactSearchInput.value);
-  renderChatHeader(activePartner);
-  renderProfilePanel(activePartner);
+  renderChatHeader(activeChat);
+  /* =========================
+    MODIFICATION: panneau de droite différent pour groupe et chat privé
+    Un groupe affiche ses membres, un chat privé affiche le profil du partenaire.
+  ========================= */
+  if (isGroupChat(activeChat)) {
+    renderGroupPanel(activeChat);
+  } else {
+    renderProfilePanel(activePartner);
+  }
 
   // Modification : affichage du statut et blocage éventuel du formulaire.
   renderRequestStatus(activeChat);
@@ -1461,7 +1684,7 @@ async function uploadAttachedFile(chatId, file) {
 }
 
 async function sendMessage() {
-  if (!activeChatId || !activePartner || !activeChat) {
+  if (!activeChatId || !activeChat) {
     showModal(
       "info",
       "Kein Chat ausgewählt",
@@ -1475,7 +1698,9 @@ async function sendMessage() {
     showModal(
       "info",
       "Lernpartnerschaft beendet",
-      "Diese Lernpartnerschaft wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
+      isGroupChat(activeChat)
+        ? "Diese Lerngruppe wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
+        : "Diese Lernpartnerschaft wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
     );
     return;
   }
@@ -1526,10 +1751,23 @@ async function sendMessage() {
     deleted: false,
   });
 
+  /* =========================
+     MODIFICATION: unreadCount compatible avec les chats privés et les groupes
+     Pour un groupe, tous les autres membres reçoivent +1. Pour un chat privé, cela revient au partenaire.
+  ========================= */
+  const unreadUpdates = {};
+
+  (activeChat.participants || []).forEach((participantId) => {
+    if (participantId !== currentUser.uid) {
+      unreadUpdates[`unreadCount.${participantId}`] = increment(1);
+    }
+  });
+
   await updateDoc(doc(db, "chats", activeChatId), {
     lastMessage: text || `Datei: ${fileName}`,
     lastMessageAt: serverTimestamp(),
-    [`unreadCount.${activePartner.id}`]: increment(1),
+    updatedAt: serverTimestamp(),
+    ...unreadUpdates,
   });
 
   messageInput.value = "";
@@ -1593,7 +1831,6 @@ messageInput.addEventListener("keydown", async (event) => {
     }
   }
 });
-
 fileInput.addEventListener("change", () => {
   // Modification : remplacement de alert() par showModal().
   if (!STORAGE_ENABLED) {
@@ -1644,8 +1881,17 @@ contactSearchInput.addEventListener("input", () => {
   }
 
   const filteredChats = chats.filter((chat) => {
-    const partnerName = chat.partner.fullname || "";
-    const partnerMatch = normalizeText(partnerName).includes(normalizedQuery);
+    const chatName = isGroupChat(chat)
+      ? chat.groupName || "Lerngruppe"
+      : chat.partner?.fullname || "";
+
+    const nameMatch = normalizeText(chatName).includes(normalizedQuery);
+
+    const memberMatch = isGroupChat(chat)
+      ? getChatMembers(chat).some((member) =>
+          normalizeText(member.fullname || "").includes(normalizedQuery)
+        )
+      : false;
 
     const messageMatch = (chat.recentMessages || []).some((message) => {
       if (message.deleted) return false;
@@ -1653,7 +1899,7 @@ contactSearchInput.addEventListener("input", () => {
       return normalizeText(message.text || "").includes(normalizedQuery);
     });
 
-    return partnerMatch || messageMatch;
+    return nameMatch || memberMatch || messageMatch;
   });
 
   renderContacts(filteredChats, queryText);
@@ -1723,6 +1969,296 @@ if (chatBtn) {
 }
 
 /* =========================
+   MODIFICATION: ouvrir la modal de création de Lerngruppe
+   Le bouton 👥 charge les partenaires acceptés puis affiche la modal.
+========================= */
+async function openGroupModal() {
+  if (!groupModal) return;
+
+  groupNameInput.value = "";
+
+  acceptedPartnersList.innerHTML =
+    '<p class="empty-message">Partner werden geladen...</p>';
+
+  updateSelectedGroupMembersCounter();
+
+  groupModal.classList.remove("hidden");
+
+  try {
+    await loadAcceptedPartnersForGroup();
+  } catch (error) {
+    console.error(error);
+
+    acceptedPartnersList.innerHTML =
+      '<p class="empty-message">Partner konnten nicht geladen werden.</p>';
+
+    showModal(
+      "error",
+      "Fehler",
+      "Die akzeptierten Partner konnten nicht geladen werden."
+    );
+  }
+
+  setTimeout(() => {
+    groupNameInput.focus();
+  }, 50);
+}
+
+/* =========================
+   MODIFICATION: fermer la modal de création de groupe
+========================= */
+function closeGroupModal() {
+  if (!groupModal) return;
+
+  groupModal.classList.add("hidden");
+
+  if (groupForm) {
+    groupForm.reset();
+  }
+
+  acceptedPartnersForGroup = [];
+
+  if (acceptedPartnersList) {
+    acceptedPartnersList.innerHTML =
+      '<p class="empty-message">Partner werden geladen...</p>';
+  }
+
+  updateSelectedGroupMembersCounter();
+}
+
+/* =========================
+   MODIFICATION: charger uniquement les partenaires acceptés
+   On lit partnerRequests et on garde seulement les demandes avec status === "accepted".
+========================= */
+async function loadAcceptedPartnersForGroup() {
+  if (!currentUser) return;
+
+  const requestsQuery = query(
+    collection(db, "partnerRequests"),
+    where("participants", "array-contains", currentUser.uid)
+  );
+
+  const snapshot = await getDocs(requestsQuery);
+
+  const acceptedRequests = snapshot.docs
+    .map((requestDocument) => ({
+      id: requestDocument.id,
+      ...requestDocument.data(),
+    }))
+    .filter((request) => request.status === "accepted");
+
+  const partnerIds = [
+    ...new Set(
+      acceptedRequests
+        .map((request) =>
+          request.participants.find((participantId) => {
+            return participantId !== currentUser.uid;
+          })
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  acceptedPartnersForGroup = await Promise.all(
+    partnerIds.map((partnerId) => getUserData(partnerId))
+  );
+
+  renderAcceptedPartnersForGroup();
+}
+
+/* =========================
+   MODIFICATION: afficher les partenaires acceptés dans la modal
+   Chaque partenaire est affiché avec une checkbox.
+========================= */
+function renderAcceptedPartnersForGroup() {
+  if (!acceptedPartnersList) return;
+
+  if (acceptedPartnersForGroup.length === 0) {
+    acceptedPartnersList.innerHTML = `
+      <p class="empty-message">
+        Keine akzeptierten Lernpartner gefunden.
+      </p>
+    `;
+
+    updateSelectedGroupMembersCounter();
+    return;
+  }
+
+  acceptedPartnersList.innerHTML = acceptedPartnersForGroup
+    .map(
+      (partner) => `
+        <label class="accepted-partner-option">
+          <input
+            type="checkbox"
+            class="group-member-checkbox"
+            value="${escapeHTML(partner.id)}"
+          />
+
+          <img
+            src="${escapeHTML(partner.photoURL || DEFAULT_PROFILE_PHOTO)}"
+            alt="Profilbild von ${escapeHTML(partner.fullname || "Partner")}"
+          />
+
+          <div>
+            <p class="accepted-partner-name">
+              ${escapeHTML(partner.fullname || "Unbekannter Nutzer")}
+            </p>
+
+            <p class="accepted-partner-meta">
+              ${escapeHTML(partner.fachbereich || partner.faculty || partner.email || "-")}
+            </p>
+          </div>
+        </label>
+      `
+    )
+    .join("");
+
+  const checkboxes = acceptedPartnersList.querySelectorAll(
+    ".group-member-checkbox"
+  );
+
+  checkboxes.forEach((checkbox) => {
+    checkbox.addEventListener("change", updateSelectedGroupMembersCounter);
+  });
+
+  updateSelectedGroupMembersCounter();
+}
+
+/* =========================
+   MODIFICATION: compter les membres sélectionnés
+   Le créateur est automatiquement inclus, donc 1 partenaire sélectionné = 2 membres au total.
+========================= */
+function getSelectedGroupMemberIds() {
+  if (!acceptedPartnersList) return [];
+
+  return Array.from(
+    acceptedPartnersList.querySelectorAll(".group-member-checkbox:checked")
+  ).map((checkbox) => checkbox.value);
+}
+
+function updateSelectedGroupMembersCounter() {
+  if (!groupMembersCounter) return;
+
+  const selectedCount = getSelectedGroupMemberIds().length;
+  const totalMembers = selectedCount + 1;
+
+  if (selectedCount === 0) {
+    groupMembersCounter.textContent = "0 ausgewählt";
+    return;
+  }
+
+  groupMembersCounter.textContent = `${selectedCount} ausgewählt · ${totalMembers} Mitglieder`;
+}
+
+/* =========================
+   MODIFICATION: créer un document type "group" dans Firestore
+   Le groupe contient toujours le créateur + les partenaires sélectionnés.
+========================= */
+async function createStudyGroup() {
+  const groupName = groupNameInput.value.trim();
+  const selectedPartnerIds = getSelectedGroupMemberIds();
+
+  if (!groupName) {
+    showModal(
+      "warning",
+      "Gruppenname fehlt",
+      "Bitte gib einen Namen für die Lerngruppe ein."
+    );
+    return;
+  }
+
+  if (selectedPartnerIds.length === 0) {
+    showModal(
+      "warning",
+      "Keine Teilnehmer",
+      "Bitte wähle mindestens einen Lernpartner aus."
+    );
+    return;
+  }
+
+  const participants = [currentUser.uid, ...selectedPartnerIds];
+
+  const unreadCount = {};
+
+  participants.forEach((participantId) => {
+    unreadCount[participantId] = 0;
+  });
+
+  if (createGroupBtn) {
+    createGroupBtn.disabled = true;
+    createGroupBtn.textContent = "Wird erstellt...";
+  }
+
+  try {
+    const groupDocument = await addDoc(collection(db, "chats"), {
+      type: "group",
+      groupName,
+      groupPhotoURL: "",
+      createdBy: currentUser.uid,
+      admins: [currentUser.uid],
+      participants,
+      active: true,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      lastMessage: "",
+      lastMessageAt: serverTimestamp(),
+      unreadCount,
+      archivedBy: [],
+    });
+
+    closeGroupModal();
+
+    showModal(
+      "success",
+      "Lerngruppe erstellt",
+      "Die Lerngruppe wurde erfolgreich erstellt.",
+      () => {
+        selectChat(groupDocument.id);
+      }
+    );
+  } catch (error) {
+    console.error(error);
+
+    showModal(
+      "error",
+      "Fehler",
+      "Die Lerngruppe konnte nicht erstellt werden."
+    );
+  } finally {
+    if (createGroupBtn) {
+      createGroupBtn.disabled = false;
+      createGroupBtn.textContent = "Gruppe erstellen";
+    }
+  }
+}
+
+/* =========================
+   MODIFICATION: événements du bouton et de la modal groupe
+   Sans ce bloc, le bouton 👥 ne peut pas ouvrir la modal.
+========================= */
+if (newGroupBtn) {
+  newGroupBtn.addEventListener("click", () => {
+    openGroupModal();
+  });
+}
+
+if (closeGroupModalBtn) {
+  closeGroupModalBtn.addEventListener("click", closeGroupModal);
+}
+
+if (groupModalBackdrop) {
+  groupModalBackdrop.addEventListener("click", closeGroupModal);
+}
+
+if (groupForm) {
+  groupForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    await createStudyGroup();
+  });
+}
+
+/* =========================
    MODIFICATION: fermeture globale avec Escape
    Ferme la photo, le menu, les modals médias/liens/recherche et la modal personnalisée.
 ========================= */
@@ -1735,6 +2271,7 @@ document.addEventListener("keydown", (event) => {
   closeChatContentModal(mediaFilesModal);
   closeChatContentModal(sharedLinksModal);
   closeChatContentModal(messageSearchModal);
+  closeGroupModal();
   closeModal();
 });
 

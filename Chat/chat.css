@@ -1539,3 +1539,187 @@ header {
     left: -48px;
   }
 }
+
+/* =========================
+   MODIFICATION: BOUTON ET MODAL DE CRÉATION DE LERNGRUPPE
+   Ces styles ajoutent la première version des groupes sans modifier le layout du chat privé.
+========================= */
+.new-group-btn {
+  width: 44px;
+  min-width: 44px;
+  border: none;
+  border-radius: 10px;
+  background: #0b2850;
+  color: white;
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+
+.new-group-btn:hover {
+  background: #17457f;
+  transform: translateY(-2px);
+}
+
+.group-modal-box {
+  width: min(92vw, 560px);
+}
+
+.group-form {
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.group-form label {
+  font-weight: 800;
+  color: #0b2850;
+}
+
+.group-form input[type="text"] {
+  border: 1px solid #cfd7e3;
+  border-radius: 10px;
+  padding: 0.85rem 0.9rem;
+  font-size: 1rem;
+  outline: none;
+}
+
+.group-form input[type="text"]:focus {
+  border-color: #0b2850;
+  box-shadow: 0 0 0 3px rgba(11, 40, 80, 0.12);
+}
+
+.group-members-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #374151;
+}
+
+.group-members-header span {
+  font-size: 0.85rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.accepted-partners-list {
+  max-height: 310px;
+  overflow-y: auto;
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.accepted-partner-option {
+  display: grid;
+  grid-template-columns: 24px 44px 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e9f0;
+  cursor: pointer;
+}
+
+.accepted-partner-option:last-child {
+  border-bottom: none;
+}
+
+.accepted-partner-option:hover {
+  background: #eef2f7;
+}
+
+.accepted-partner-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: #0b2850;
+}
+
+.accepted-partner-option img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.accepted-partner-name {
+  margin: 0;
+  font-weight: 800;
+  color: #111827;
+}
+
+.accepted-partner-meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.create-group-btn {
+  background: #0b2850;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.create-group-btn:hover {
+  background: #17457f;
+}
+
+.create-group-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.contact-avatar.group-avatar {
+  background: #e0ecff;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+}
+
+.group-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.6rem;
+}
+
+.group-member-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.9rem;
+}
+
+.group-member-item img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.message-sender-name {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #0b2850;
+  margin: 0 0 0.25rem;
+}
+
+@media (max-width: 760px) {
+  .contact-search-row {
+    gap: 0.55rem;
+  }
+
+  .new-group-btn {
+    width: 42px;
+    min-width: 42px;
+  }
+}
