@@ -131,6 +131,19 @@ const showSharedLinksBtn = document.getElementById("showSharedLinksBtn");
 const openMessageSearchBtn = document.getElementById("openMessageSearchBtn");
 
 /* =========================
+   MODIFICATION: éléments de la modal informations
+   Cette modal affiche le profil du contact ou les informations du groupe.
+========================= */
+const openChatInfoBtn = document.getElementById("openChatInfoBtn");
+const chatInfoModal = document.getElementById("chatInfoModal");
+const chatInfoBackdrop = document.getElementById("chatInfoBackdrop");
+const closeChatInfoModalBtn = document.getElementById(
+  "closeChatInfoModalBtn"
+);
+const chatInfoTitle = document.getElementById("chatInfoTitle");
+const chatInfoContent = document.getElementById("chatInfoContent");
+
+/* =========================
    MODIFICATION: éléments de la modal médias/fichiers
 ========================= */
 const mediaFilesModal = document.getElementById("mediaFilesModal");
@@ -634,6 +647,7 @@ function renderEmptyChat() {
     `;
   }
 
+  updateChatInfoMenuLabel(null);
   renderRequestStatus(null);
   updateMessageFormState(null);
 }
@@ -1979,6 +1993,221 @@ function insertEmojiIntoMessage(emoji) {
 }
 
 /* =========================
+   MODIFICATION: texte dynamique dans le menu trois points
+   Le bouton affiche une information différente pour un chat privé ou un groupe.
+========================= */
+function updateChatInfoMenuLabel(chat = activeChat) {
+  if (!openChatInfoBtn) {
+    return;
+  }
+
+  if (!chat) {
+    openChatInfoBtn.textContent = "Kontaktinformationen";
+    openChatInfoBtn.disabled = true;
+    return;
+  }
+
+  openChatInfoBtn.disabled = false;
+
+  openChatInfoBtn.textContent = isGroupChat(chat)
+    ? "Gruppeninformationen"
+    : "Kontaktinformationen";
+}
+
+/* =========================
+   MODIFICATION: fermer la modal des informations
+========================= */
+function closeChatInfoModal() {
+  if (!chatInfoModal) {
+    return;
+  }
+
+  chatInfoModal.classList.add("hidden");
+
+  if (chatInfoContent) {
+    chatInfoContent.innerHTML =
+      '<p class="empty-message">Informationen werden geladen...</p>';
+  }
+}
+
+/* =========================
+   MODIFICATION: ouvrir les informations d'un chat privé
+========================= */
+function renderPrivateChatInfo(partner) {
+  if (!chatInfoContent || !partner) {
+    return;
+  }
+
+  const partnerName = partner.fullname || "Kontakt";
+  const partnerPhoto = partner.photoURL || DEFAULT_PROFILE_PHOTO;
+  const partnerLanguages = partner.languages || partner.nationality || "-";
+
+  chatInfoContent.innerHTML = `
+    <div class="chat-info-profile-header">
+      <img
+        src="${escapeHTML(partnerPhoto)}"
+        alt="Profilbild von ${escapeHTML(partnerName)}"
+        class="chat-info-profile-photo"
+      />
+
+      <div>
+        <h3>${escapeHTML(partnerName)}</h3>
+        <p>${escapeHTML(partner.email || "-")}</p>
+      </div>
+    </div>
+
+    <div class="chat-info-details">
+      <p><strong>Fakultät:</strong> ${escapeHTML(partner.faculty || "-")}</p>
+      <p><strong>Fachbereich:</strong> ${escapeHTML(partner.fachbereich || "-")}</p>
+      <p><strong>Semester:</strong> ${escapeHTML(partner.semester || "-")}</p>
+      <p><strong>Sprachen:</strong> ${escapeHTML(partnerLanguages)}</p>
+      <p><strong>Zuletzt online:</strong> ${escapeHTML(
+        partner.online ? "Jetzt online" : formatDate(partner.lastSeen)
+      )}</p>
+    </div>
+  `;
+}
+
+/* =========================
+   MODIFICATION: ouvrir les informations d'un groupe
+   Les membres actifs voient les membres du groupe et les admins peuvent le gérer.
+========================= */
+function renderGroupChatInfo(chat) {
+  if (!chatInfoContent) {
+    return;
+  }
+
+  if (isRemovedFromGroup(chat)) {
+    chatInfoContent.innerHTML = `
+      <div class="chat-info-removed-message">
+        <h3>Aus Lerngruppe entfernt</h3>
+        <p>
+          Du wurdest aus dieser Lerngruppe entfernt.
+          Du kannst keine neuen Nachrichten senden oder empfangen.
+        </p>
+      </div>
+    `;
+
+    return;
+  }
+
+  const members = getVisibleGroupMembers(chat);
+  const currentUserIsAdmin = isCurrentUserGroupAdmin(chat);
+
+  const membersHTML =
+    members.length > 0
+      ? members
+          .map((member) => {
+            const memberName = member.fullname || member.email || "Mitglied";
+
+            return `
+              <div class="chat-info-member-item">
+                <div class="chat-info-member-main">
+                  <img
+                    src="${escapeHTML(member.photoURL || DEFAULT_PROFILE_PHOTO)}"
+                    alt="Profilbild von ${escapeHTML(memberName)}"
+                  />
+
+                  <div>
+                    <strong>${escapeHTML(memberName)}</strong>
+                    ${
+                      chat.admins?.includes(member.id)
+                        ? "<span>Admin</span>"
+                        : ""
+                    }
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  class="chat-info-member-profile-btn"
+                  data-member-id="${escapeHTML(member.id)}"
+                >
+                  Profil ansehen
+                </button>
+              </div>
+            `;
+          })
+          .join("")
+      : '<p class="empty-message">Keine aktiven Mitglieder gefunden.</p>';
+
+  const adminActionsHTML = currentUserIsAdmin
+    ? `
+      <button
+        type="button"
+        id="openGroupManagementFromInfoBtn"
+        class="chat-info-group-management-btn"
+      >
+        Mitglieder verwalten
+      </button>
+    `
+    : "";
+
+  chatInfoContent.innerHTML = `
+    <div class="chat-info-group-summary">
+      <h3>${escapeHTML(chat.groupName || "Lerngruppe")}</h3>
+      <p>${members.length} Mitglieder</p>
+    </div>
+
+    <div class="chat-info-members-list">
+      ${membersHTML}
+    </div>
+
+    ${adminActionsHTML}
+  `;
+
+  const memberProfileButtons = chatInfoContent.querySelectorAll(
+    ".chat-info-member-profile-btn"
+  );
+
+  memberProfileButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      closeChatInfoModal();
+      openGroupMemberProfileModal(button.dataset.memberId);
+    });
+  });
+
+  const groupManagementBtn = document.getElementById(
+    "openGroupManagementFromInfoBtn"
+  );
+
+  if (groupManagementBtn) {
+    groupManagementBtn.addEventListener("click", () => {
+      closeChatInfoModal();
+      openManageGroupMembersModal();
+    });
+  }
+}
+
+/* =========================
+   MODIFICATION: ouvrir les informations selon le type de conversation
+========================= */
+function openChatInfo() {
+  closeChatOptionsMenu();
+
+  if (!ensureActiveChatSelected() || !activeChat || !chatInfoModal) {
+    return;
+  }
+
+  chatInfoModal.classList.remove("hidden");
+
+  if (isGroupChat(activeChat)) {
+    if (chatInfoTitle) {
+      chatInfoTitle.textContent = "Gruppeninformationen";
+    }
+
+    renderGroupChatInfo(activeChat);
+    return;
+  }
+
+  if (chatInfoTitle) {
+    chatInfoTitle.textContent = "Kontaktinformationen";
+  }
+
+  renderPrivateChatInfo(activePartner);
+}
+
+/* =========================
    MODIFICATION: ouvrir/fermer le menu trois points
 ========================= */
 function toggleChatOptionsMenu() {
@@ -2339,6 +2568,21 @@ if (openMessageSearchBtn) {
   openMessageSearchBtn.addEventListener("click", openMessageSearch);
 }
 
+/* =========================
+   MODIFICATION: événements de la modal informations
+========================= */
+if (openChatInfoBtn) {
+  openChatInfoBtn.addEventListener("click", openChatInfo);
+}
+
+if (closeChatInfoModalBtn) {
+  closeChatInfoModalBtn.addEventListener("click", closeChatInfoModal);
+}
+
+if (chatInfoBackdrop) {
+  chatInfoBackdrop.addEventListener("click", closeChatInfoModal);
+}
+
 if (messageSearchInput) {
   messageSearchInput.addEventListener("input", () => {
     searchInsideActiveConversation(messageSearchInput.value);
@@ -2676,6 +2920,9 @@ function subscribeToChats() {
 
           renderChatHeader(activeChat);
 
+
+          updateChatInfoMenuLabel(activeChat);
+
           if (isGroupChat(activeChat)) {
             renderGroupPanel(activeChat);
           } else {
@@ -2822,6 +3069,7 @@ async function selectChat(chatId) {
 
   renderContacts(chats, contactSearchInput.value);
   renderChatHeader(activeChat);
+  updateChatInfoMenuLabel(activeChat);
   /* =========================
     MODIFICATION: panneau de droite différent pour groupe et chat privé
     Un groupe affiche ses membres, un chat privé affiche le profil du partenaire.
@@ -3449,6 +3697,7 @@ document.addEventListener("keydown", (event) => {
   closeGroupMemberProfileModal();
   closeManageGroupMembersModal();
   closeModal();
+  closeChatInfoModal();
 });
 
 onAuthStateChanged(auth, async (user) => {

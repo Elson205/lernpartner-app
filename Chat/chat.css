@@ -2031,3 +2031,170 @@ header {
 .restore-group-member-btn:hover {
   background: #bbf7d0;
 }
+
+/* =========================
+   MODIFICATION: MODAL INFORMATIONS CONTACT ET GROUPE
+   Cette modal permet d'accéder au panneau droit depuis le téléphone.
+========================= */
+.chat-info-modal-box {
+  width: min(94vw, 580px);
+}
+
+.chat-info-content {
+  padding: 1.1rem;
+}
+
+.chat-info-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e9f0;
+}
+
+.chat-info-profile-photo {
+  width: 82px;
+  height: 82px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #e5e9f0;
+}
+
+.chat-info-profile-header h3,
+.chat-info-group-summary h3 {
+  margin: 0;
+  color: #0b2850;
+}
+
+.chat-info-profile-header p,
+.chat-info-group-summary p {
+  margin: 0.3rem 0 0;
+  color: #6b7280;
+}
+
+.chat-info-details {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.chat-info-details p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.chat-info-details strong {
+  color: #0b2850;
+}
+
+.chat-info-group-summary {
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid #e5e9f0;
+}
+
+.chat-info-members-list {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.chat-info-member-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.chat-info-member-main {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.chat-info-member-main img {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.chat-info-member-main div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chat-info-member-main strong {
+  color: #111827;
+  word-break: break-word;
+}
+
+.chat-info-member-main span {
+  color: #15803d;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-top: 0.15rem;
+}
+
+.chat-info-member-profile-btn,
+.chat-info-group-management-btn {
+  border: none;
+  border-radius: 999px;
+  background: #0b2850;
+  color: white;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chat-info-group-management-btn {
+  width: 100%;
+  margin-top: 1rem;
+  border-radius: 10px;
+  padding: 0.8rem;
+}
+
+.chat-info-removed-message {
+  padding: 1rem;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
+.chat-info-removed-message h3,
+.chat-info-removed-message p {
+  margin: 0;
+}
+
+.chat-info-removed-message p {
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .chat-info-modal-box {
+    width: 96vw;
+    max-height: 90vh;
+  }
+
+  .chat-info-member-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .chat-info-member-main {
+    width: 100%;
+  }
+
+  .chat-info-member-profile-btn {
+    width: 100%;
+  }
+}

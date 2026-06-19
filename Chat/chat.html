@@ -124,6 +124,10 @@
               <button type="button" id="openMessageSearchBtn">
                 Nachrichten durchsuchen
               </button>
+
+              <button type="button" id="openChatInfoBtn">
+                Kontaktinformationen
+              </button>
             </div>
           </div>
         </div>
@@ -509,6 +513,33 @@
             Mitglieder hinzufügen
           </button>
         </form>
+      </div>
+    </div>
+
+    <!-- =========================
+     MODIFICATION: modal informations de contact ou de groupe
+     Elle remplace le panneau droit sur téléphone.
+========================= -->
+    <div id="chatInfoModal" class="chat-content-modal hidden">
+      <div id="chatInfoBackdrop" class="chat-content-backdrop"></div>
+
+      <div class="chat-content-box chat-info-modal-box">
+        <div class="chat-content-header">
+          <h2 id="chatInfoTitle">Kontaktinformationen</h2>
+
+          <button
+            type="button"
+            id="closeChatInfoModalBtn"
+            class="chat-content-close"
+            aria-label="Informationen schließen"
+          >
+            ×
+          </button>
+        </div>
+
+        <div id="chatInfoContent" class="chat-content-list chat-info-content">
+          <p class="empty-message">Informationen werden geladen...</p>
+        </div>
       </div>
     </div>
 
