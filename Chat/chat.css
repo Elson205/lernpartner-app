@@ -1723,3 +1723,169 @@ header {
     min-width: 42px;
   }
 }
+
+/* =========================
+   MODIFICATION: PROFIL D'UN MEMBRE DE GROUPE
+   Cette partie stylise la modal qui affiche les informations détaillées d'un membre.
+========================= */
+.group-member-profile-box {
+  width: min(92vw, 620px);
+}
+
+.group-member-profile-content {
+  padding: 1.2rem;
+  overflow-y: auto;
+}
+
+.group-member-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.group-member-profile-photo {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #e5e9f0;
+  flex-shrink: 0;
+}
+
+.group-member-profile-title h3 {
+  margin: 0;
+  color: #0b2850;
+  font-size: 1.25rem;
+}
+
+.group-member-profile-title p {
+  margin: 0.25rem 0 0;
+  color: #6b7280;
+  word-break: break-word;
+}
+
+.group-member-profile-info {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.group-member-profile-info p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.group-member-profile-info strong {
+  color: #0b2850;
+}
+
+.group-member-courses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.4rem;
+}
+
+.group-member-course-tag {
+  background: #eaf3ff;
+  color: #0b2850;
+  border: 1px solid #bfd8ff;
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.group-member-actions {
+  margin-top: 1.2rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.group-member-profile-btn {
+  border: none;
+  border-radius: 999px;
+  background: #0b2850;
+  color: white;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.group-member-profile-btn:hover {
+  background: #17457f;
+}
+
+.group-member-item {
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.group-member-main {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.group-member-main span {
+  word-break: break-word;
+}
+
+@media (max-width: 760px) {
+  .group-member-profile-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .group-member-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .group-member-main {
+    width: 100%;
+  }
+
+  .group-member-profile-btn {
+    width: 100%;
+  }
+}
+
+/* =========================
+   MODIFICATION: bouton de demande de Lernpartnerschaft
+   Ce bouton est affiché dans le profil d'un membre de groupe.
+========================= */
+.group-member-partner-btn {
+  border: none;
+  border-radius: 10px;
+  background: #0b2850;
+  color: white;
+  padding: 0.75rem 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  width: 100%;
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+
+.group-member-partner-btn:hover:not(:disabled) {
+  background: #17457f;
+  transform: translateY(-1px);
+}
+
+.group-member-partner-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.group-member-partner-note {
+  margin: 0.75rem 0 0;
+  color: #6b7280;
+  font-size: 0.85rem;
+  text-align: center;
+}

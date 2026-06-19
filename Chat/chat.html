@@ -423,6 +423,35 @@
       </div>
     </div>
 
+    <!-- =========================
+         MODIFICATION: Modal profil d'un membre de groupe
+         Elle permet d'afficher les informations détaillées d'un membre directement depuis une Lerngruppe.
+    ========================= -->
+    <div id="groupMemberProfileModal" class="chat-content-modal hidden">
+      <div id="groupMemberProfileBackdrop" class="chat-content-backdrop"></div>
+
+      <div class="chat-content-box group-member-profile-box">
+        <div class="chat-content-header">
+          <h2>Profil ansehen</h2>
+
+          <button
+            type="button"
+            id="closeGroupMemberProfileModalBtn"
+            class="chat-content-close"
+            aria-label="Profil schließen"
+          >
+            ×
+          </button>
+        </div>
+
+        <div
+          id="groupMemberProfileContent"
+          class="group-member-profile-content"
+        >
+          <p class="empty-message">Profil wird geladen...</p>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="chat.js"></script>
   </body>

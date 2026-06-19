@@ -159,6 +159,23 @@ const closeMessageSearchModalBtn = document.getElementById(
 const messageSearchInput = document.getElementById("messageSearchInput");
 const messageSearchResults = document.getElementById("messageSearchResults");
 
+/* =========================
+   MODIFICATION: éléments de la modal profil membre de groupe
+   Ces éléments permettent d'afficher le profil détaillé d'un membre d'une Lerngruppe.
+========================= */
+const groupMemberProfileModal = document.getElementById(
+  "groupMemberProfileModal"
+);
+const groupMemberProfileBackdrop = document.getElementById(
+  "groupMemberProfileBackdrop"
+);
+const closeGroupMemberProfileModalBtn = document.getElementById(
+  "closeGroupMemberProfileModalBtn"
+);
+const groupMemberProfileContent = document.getElementById(
+  "groupMemberProfileContent"
+);
+
 let currentUser = null;
 let chats = [];
 let activeChatId = null;
@@ -794,8 +811,337 @@ function renderProfilePanel(partner) {
 }
 
 /* =========================
+   MODIFICATION: préparation des cours d'un membre pour l'affichage du profil
+   Les cours actifs sont affichés sous forme de petits badges.
+========================= */
+function renderMemberCourses(activeCourses = []) {
+  if (!Array.isArray(activeCourses) || activeCourses.length === 0) {
+    return '<p class="empty-message">Keine Kurse angegeben.</p>';
+  }
+
+  return `
+    <div class="group-member-courses">
+      ${activeCourses
+        .map((course) => {
+          const courseName =
+            typeof course === "string" ? course : course.name || "Kurs";
+
+          return `
+            <span class="group-member-course-tag">
+              ${escapeHTML(courseName)}
+            </span>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+/* =========================
+   MODIFICATION: vérification de la relation de Lernpartnerschaft
+   Seules les demandes pending et les partenariats accepted bloquent une nouvelle demande.
+========================= */
+async function getPartnerRequestState(memberId) {
+  if (!currentUser || !memberId) {
+    return null;
+  }
+
+  const requestsQuery = query(
+    collection(db, "partnerRequests"),
+    where("participants", "array-contains", currentUser.uid)
+  );
+
+  const snapshot = await getDocs(requestsQuery);
+
+  const relatedRequests = snapshot.docs
+    .map((requestDocument) => ({
+      id: requestDocument.id,
+      ...requestDocument.data(),
+    }))
+    .filter((request) => {
+      return (
+        request.participants?.includes(memberId) &&
+        (request.status === "pending" || request.status === "accepted")
+      );
+    });
+
+  const acceptedRequest = relatedRequests.find(
+    (request) => request.status === "accepted"
+  );
+
+  if (acceptedRequest) {
+    return acceptedRequest;
+  }
+
+  return relatedRequests.find((request) => request.status === "pending") || null;
+}
+
+/* =========================
+   MODIFICATION: créer une demande de Lernpartnerschaft depuis un groupe
+   La demande est créée seulement si aucune demande active n'existe déjà.
+========================= */
+async function sendPartnerRequestFromGroup(memberId) {
+  if (!currentUser || !memberId) {
+    return;
+  }
+
+  if (memberId === currentUser.uid) {
+    showModal(
+      "info",
+      "Eigener Benutzer",
+      "Du kannst dir selbst keine Lernpartner-Anfrage senden."
+    );
+    return;
+  }
+
+  try {
+    const existingRequest = await getPartnerRequestState(memberId);
+
+    if (existingRequest?.status === "accepted") {
+      showModal(
+        "info",
+        "Bereits Lernpartner",
+        "Ihr seid bereits als Lernpartner verbunden."
+      );
+      return;
+    }
+
+    if (existingRequest?.status === "pending") {
+      const message =
+        existingRequest.senderId === currentUser.uid
+          ? "Du hast dieser Person bereits eine Anfrage gesendet."
+          : "Diese Person hat dir bereits eine Anfrage gesendet. Du kannst sie unter Anfragen beantworten.";
+
+      showModal("info", "Anfrage bereits vorhanden", message);
+      return;
+    }
+
+    await addDoc(collection(db, "partnerRequests"), {
+      senderId: currentUser.uid,
+      receiverId: memberId,
+      participants: [currentUser.uid, memberId],
+      status: "pending",
+      seenBy: [currentUser.uid],
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    showModal(
+      "success",
+      "Anfrage gesendet",
+      "Die Lernpartner-Anfrage wurde erfolgreich gesendet."
+    );
+
+    closeGroupMemberProfileModal();
+  } catch (error) {
+    console.error(error);
+
+    showModal(
+      "error",
+      "Fehler",
+      "Die Lernpartner-Anfrage konnte nicht gesendet werden."
+    );
+  }
+}
+
+/* =========================
+   MODIFICATION: préparer le bouton dans le profil membre
+   Le bouton change selon la relation déjà existante.
+========================= */
+async function renderGroupMemberPartnerAction(memberId) {
+  if (memberId === currentUser.uid) {
+    return `
+      <p class="group-member-partner-note">
+        Das ist dein eigenes Profil.
+      </p>
+    `;
+  }
+
+  const existingRequest = await getPartnerRequestState(memberId);
+
+  if (existingRequest?.status === "accepted") {
+    return `
+      <button
+        type="button"
+        class="group-member-partner-btn"
+        disabled
+      >
+        Bereits Lernpartner
+      </button>
+    `;
+  }
+
+  if (existingRequest?.status === "pending") {
+    const buttonText =
+      existingRequest.senderId === currentUser.uid
+        ? "Anfrage bereits gesendet"
+        : "Anfrage erhalten";
+
+    return `
+      <button
+        type="button"
+        class="group-member-partner-btn"
+        disabled
+      >
+        ${buttonText}
+      </button>
+    `;
+  }
+
+  return `
+    <button
+      type="button"
+      id="sendPartnerRequestFromGroupBtn"
+      class="group-member-partner-btn"
+      data-member-id="${escapeHTML(memberId)}"
+    >
+      Als Lernpartner hinzufügen
+    </button>
+  `;
+}
+
+/* =========================
+   MODIFICATION: ouvrir la modal du profil d'un membre du groupe
+   Cette modal affiche les informations du membre sans quitter la page Chat.
+========================= */
+/* =========================
+   MODIFICATION: modal profil membre avec bouton de demande de partenariat
+   Elle affiche le profil puis permet d'envoyer une demande si aucune relation active n'existe.
+========================= */
+async function openGroupMemberProfileModal(memberId) {
+  if (!groupMemberProfileModal || !groupMemberProfileContent) {
+    return;
+  }
+
+  const member = getChatMembers(activeChat).find(
+    (user) => user.id === memberId
+  );
+
+  if (!member) {
+    showModal(
+      "error",
+      "Profil nicht gefunden",
+      "Das Profil dieses Mitglieds konnte nicht geladen werden."
+    );
+    return;
+  }
+
+  groupMemberProfileContent.innerHTML =
+    '<p class="empty-message">Profil wird geladen...</p>';
+
+  groupMemberProfileModal.classList.remove("hidden");
+
+  try {
+    const memberName = member.fullname || "Mitglied";
+    const memberEmail = member.email || "-";
+    const memberPhoto = member.photoURL || DEFAULT_PROFILE_PHOTO;
+    const memberLanguages = member.languages || member.nationality || "-";
+    const memberAbout = member.aboutText || "-";
+
+    const memberCoursesHTML = renderMemberCourses(member.activeCourses || []);
+
+    const partnerActionHTML = await renderGroupMemberPartnerAction(memberId);
+
+    groupMemberProfileContent.innerHTML = `
+      <div class="group-member-profile-header">
+        <img
+          src="${escapeHTML(memberPhoto)}"
+          alt="Profilbild von ${escapeHTML(memberName)}"
+          class="group-member-profile-photo"
+        />
+
+        <div class="group-member-profile-title">
+          <h3>${escapeHTML(memberName)}</h3>
+          <p>${escapeHTML(memberEmail)}</p>
+        </div>
+      </div>
+
+      <div class="group-member-profile-info">
+        <p>
+          <strong>Fakultät:</strong>
+          <span>${escapeHTML(member.faculty || "-")}</span>
+        </p>
+
+        <p>
+          <strong>Fachbereich:</strong>
+          <span>${escapeHTML(member.fachbereich || "-")}</span>
+        </p>
+
+        <p>
+          <strong>Semester:</strong>
+          <span>${escapeHTML(member.semester || "-")}</span>
+        </p>
+
+        <p>
+          <strong>Sprachen:</strong>
+          <span>${escapeHTML(memberLanguages)}</span>
+        </p>
+
+        <p>
+          <strong>Über mich:</strong>
+          <span>${escapeHTML(memberAbout)}</span>
+        </p>
+
+        <div>
+          <strong>Kurse:</strong>
+          ${memberCoursesHTML}
+        </div>
+      </div>
+
+      <div class="group-member-actions">
+        ${partnerActionHTML}
+      </div>
+    `;
+
+    const sendPartnerRequestBtn = document.getElementById(
+      "sendPartnerRequestFromGroupBtn"
+    );
+
+    if (sendPartnerRequestBtn) {
+      sendPartnerRequestBtn.addEventListener("click", async () => {
+        sendPartnerRequestBtn.disabled = true;
+        sendPartnerRequestBtn.textContent = "Anfrage wird gesendet...";
+
+        await sendPartnerRequestFromGroup(
+          sendPartnerRequestBtn.dataset.memberId
+        );
+      });
+    }
+  } catch (error) {
+    console.error(error);
+
+    groupMemberProfileContent.innerHTML =
+      '<p class="empty-message">Profil konnte nicht geladen werden.</p>';
+
+    showModal(
+      "error",
+      "Fehler",
+      "Das Profil dieses Mitglieds konnte nicht geladen werden."
+    );
+  }
+}
+
+/* =========================
+   MODIFICATION: fermer la modal du profil d'un membre de groupe
+========================= */
+function closeGroupMemberProfileModal() {
+  if (!groupMemberProfileModal) return;
+
+  groupMemberProfileModal.classList.add("hidden");
+
+  if (groupMemberProfileContent) {
+    groupMemberProfileContent.innerHTML =
+      '<p class="empty-message">Profil wird geladen...</p>';
+  }
+}
+
+/* =========================
    MODIFICATION: panneau de droite pour les groupes d'étude
    Au lieu du profil d'un seul partenaire, il affiche les membres du groupe.
+========================= */
+/* =========================
+   MODIFICATION: panneau de droite pour les groupes d'étude
+   Chaque membre possède maintenant un bouton "Profil ansehen".
 ========================= */
 function renderGroupPanel(chat) {
   const members = getChatMembers(chat);
@@ -809,19 +1155,29 @@ function renderGroupPanel(chat) {
           .map(
             (member) => `
               <div class="group-member-item">
-                <img
-                  src="${escapeHTML(member.photoURL || DEFAULT_PROFILE_PHOTO)}"
-                  alt="Profilbild von ${escapeHTML(member.fullname || "Mitglied")}"
-                />
+                <div class="group-member-main">
+                  <img
+                    src="${escapeHTML(member.photoURL || DEFAULT_PROFILE_PHOTO)}"
+                    alt="Profilbild von ${escapeHTML(member.fullname || "Mitglied")}"
+                  />
 
-                <span>
-                  ${escapeHTML(member.fullname || member.email || "Mitglied")}
-                  ${
-                    chat.admins?.includes(member.id)
-                      ? "<strong> · Admin</strong>"
-                      : ""
-                  }
-                </span>
+                  <span>
+                    ${escapeHTML(member.fullname || member.email || "Mitglied")}
+                    ${
+                      chat.admins?.includes(member.id)
+                        ? "<strong> · Admin</strong>"
+                        : ""
+                    }
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  class="group-member-profile-btn"
+                  data-member-id="${escapeHTML(member.id)}"
+                >
+                  Profil ansehen
+                </button>
               </div>
             `
           )
@@ -839,6 +1195,16 @@ function renderGroupPanel(chat) {
       </div>
     `;
   }
+
+  const profileButtons = profileInfo.querySelectorAll(
+    ".group-member-profile-btn"
+  );
+
+  profileButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      openGroupMemberProfileModal(button.dataset.memberId);
+    });
+  });
 
   profilePhoto.onclick = null;
 }
@@ -1265,6 +1631,23 @@ if (messageSearchBackdrop) {
   messageSearchBackdrop.addEventListener("click", () => {
     closeChatContentModal(messageSearchModal);
   });
+}
+
+/* =========================
+   MODIFICATION: événements de fermeture de la modal profil membre de groupe
+========================= */
+if (closeGroupMemberProfileModalBtn) {
+  closeGroupMemberProfileModalBtn.addEventListener(
+    "click",
+    closeGroupMemberProfileModal
+  );
+}
+
+if (groupMemberProfileBackdrop) {
+  groupMemberProfileBackdrop.addEventListener(
+    "click",
+    closeGroupMemberProfileModal
+  );
 }
 
 /* =========================
@@ -2272,6 +2655,7 @@ document.addEventListener("keydown", (event) => {
   closeChatContentModal(sharedLinksModal);
   closeChatContentModal(messageSearchModal);
   closeGroupModal();
+  closeGroupMemberProfileModal();
   closeModal();
 });
 

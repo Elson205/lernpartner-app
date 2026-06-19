@@ -96,6 +96,23 @@ function passwordsMatch(password, confirmPassword) {
   return password !== "" && password === confirmPassword;
 }
 
+/* =========================
+   MODIFICATION: état initial neutre des contrôles Signup
+   Les erreurs rouges ne s'affichent pas directement au chargement de la page.
+========================= */
+function resetSignupChecks() {
+  setNeutral("check-fullname", "➖ Vor- Nachname eingeben");
+  setNeutral("check-email", "➖ Universitäts Email eingeben");
+  setNeutral("check-password", "➖ Passwort eingeben");
+  setNeutral("check-confirm-password", "➖ Passwort bestätigen");
+
+  submitBtn.disabled = true;
+}
+
+/* =========================
+   MODIFICATION: validation progressive du formulaire
+   Les messages restent neutres tant que l'utilisateur n'a rien saisi.
+========================= */
 function checkFormValid() {
   const fullname = fullnameInput.value.trim();
   const email = emailInput.value.trim();
@@ -107,13 +124,15 @@ function checkFormValid() {
   const passwordValid = isPasswordValid(password);
   const confirmPasswordValid = passwordsMatch(password, confirmPassword);
 
-  if (fullnameValid) {
-    setValid("check-fullname", "✅ Vor- Nachname eingegeben");
-  } else {
+  if (fullname === "") {
     setNeutral("check-fullname", "➖ Vor- Nachname eingeben");
+  } else if (fullnameValid) {
+    setValid("check-fullname", "✅ Vor- Nachname eingegeben");
   }
 
-  if (emailValid) {
+  if (email === "") {
+    setNeutral("check-email", "➖ Universitäts Email eingeben");
+  } else if (emailValid) {
     setValid("check-email", "✅ Uni-E-Mail-Adresse erkannt");
   } else {
     setInvalid(
@@ -122,13 +141,17 @@ function checkFormValid() {
     );
   }
 
-  if (passwordValid) {
+  if (password === "") {
+    setNeutral("check-password", "➖ Passwort eingeben");
+  } else if (passwordValid) {
     setValid("check-password", "✅ Passwort gültig");
   } else {
     setInvalid("check-password", "❌ Passwort mindestens 6 Zeichen");
   }
 
-  if (confirmPasswordValid) {
+  if (confirmPassword === "") {
+    setNeutral("check-confirm-password", "➖ Passwort bestätigen");
+  } else if (confirmPasswordValid) {
     setValid("check-confirm-password", "✅ Passwörter stimmen überein");
   } else {
     setInvalid("check-confirm-password", "❌ Passwörter stimmen nicht überein");
@@ -289,4 +312,4 @@ confirmPasswordInput.addEventListener("input", () => {
   checkFormValid();
 });
 
-checkFormValid();
+resetSignupChecks();
