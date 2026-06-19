@@ -23,6 +23,8 @@ import {
   serverTimestamp,
   increment,
   arrayUnion,
+  arrayRemove,
+  deleteField,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 import {
@@ -176,6 +178,38 @@ const groupMemberProfileContent = document.getElementById(
   "groupMemberProfileContent"
 );
 
+/* =========================
+   MODIFICATION: éléments HTML pour ajouter des membres à un groupe existant
+   Ces éléments correspondent à la modal de gestion des participants.
+========================= */
+const manageGroupMembersModal = document.getElementById(
+  "manageGroupMembersModal"
+);
+const manageGroupMembersBackdrop = document.getElementById(
+  "manageGroupMembersBackdrop"
+);
+const closeManageGroupMembersModalBtn = document.getElementById(
+  "closeManageGroupMembersModalBtn"
+);
+const manageGroupMembersForm = document.getElementById(
+  "manageGroupMembersForm"
+);
+const availableGroupPartnersList = document.getElementById(
+  "availableGroupPartnersList"
+);
+const manageGroupMembersCounter = document.getElementById(
+  "manageGroupMembersCounter"
+);
+const addGroupMembersBtn = document.getElementById("addGroupMembersBtn");
+
+/* =========================
+   MODIFICATION: liste des anciens membres retirés du groupe
+   Elle permet à un admin de les réintégrer.
+========================= */
+const removedGroupMembersList = document.getElementById(
+  "removedGroupMembersList"
+);
+
 let currentUser = null;
 let chats = [];
 let activeChatId = null;
@@ -194,6 +228,7 @@ let activeMessages = [];
    Il évite de recharger les mêmes profils tant que la modal reste ouverte.
 ========================= */
 let acceptedPartnersForGroup = [];
+let availablePartnersForActiveGroup = [];
 
 const urlParams = new URLSearchParams(window.location.search);
 
@@ -334,9 +369,16 @@ function formatTime(timestamp) {
   });
 }
 
-// Modification : vérifie si la Lernpartnerschaft est terminée.
+/* =========================
+   MODIFICATION: un membre retiré est bloqué comme un chat terminé
+   Il garde l'accès à l'historique, mais ne peut plus écrire.
+========================= */
 function isChatEnded(chat) {
-  return chat?.active === false || chat?.requestStatus === "ended";
+  return (
+    chat?.active === false ||
+    chat?.requestStatus === "ended" ||
+    isRemovedFromGroup(chat)
+  );
 }
 
 /* =========================
@@ -351,8 +393,58 @@ function isGroupChat(chat) {
   return getChatType(chat) === "group";
 }
 
+/* =========================
+   MODIFICATION: vérifier si un utilisateur a été retiré d'une Lerngruppe
+   Un membre retiré garde le groupe dans ses contacts, mais ne peut plus participer.
+========================= */
+function isRemovedFromGroup(chat, userId = currentUser?.uid) {
+  if (!isGroupChat(chat) || !userId) {
+    return false;
+  }
+
+  return Array.isArray(chat.removedMembers)
+    ? chat.removedMembers.includes(userId)
+    : false;
+}
+
+/* =========================
+   MODIFICATION: récupérer la date de retrait d'un membre
+   Cette date permet de masquer les nouveaux messages pour un membre retiré.
+========================= */
+function getGroupRemovalDate(chat, userId = currentUser?.uid) {
+  if (!chat || !userId) {
+    return null;
+  }
+
+  return chat.removedMemberDetails?.[userId]?.removedAt || null;
+}
+
+/* =========================
+   MODIFICATION: récupérer uniquement les membres actifs du groupe
+   Les membres retirés ne doivent plus apparaître dans la liste active du groupe.
+========================= */
+function getActiveGroupParticipantIds(chat) {
+  const removedMembers = chat?.removedMembers || [];
+
+  return (chat?.participants || []).filter(
+    (participantId) => !removedMembers.includes(participantId)
+  );
+}
+
 function getChatMembers(chat) {
   return Array.isArray(chat?.members) ? chat.members : [];
+}
+
+/* =========================
+   MODIFICATION: membres visibles dans le panneau du groupe
+   Les membres retirés ne sont plus visibles pour les membres encore actifs.
+========================= */
+function getVisibleGroupMembers(chat) {
+  const removedMembers = chat?.removedMembers || [];
+
+  return getChatMembers(chat).filter(
+    (member) => !removedMembers.includes(member.id)
+  );
 }
 
 function getMemberNameById(chat, uid) {
@@ -388,6 +480,12 @@ function renderRequestStatus(chat) {
   }
 
   if (isGroupChat(chat)) {
+    if (isRemovedFromGroup(chat)) {
+      requestStatus.textContent = "Aus Lerngruppe entfernt";
+      requestStatus.classList.add("ended");
+      return;
+    }
+
     requestStatus.textContent = "Lerngruppe aktiv";
     requestStatus.classList.add("confirmed");
     return;
@@ -410,6 +508,12 @@ function updateMessageFormState(chat) {
 
   if (endedChatNotice) {
     endedChatNotice.classList.toggle("hidden", !ended);
+  }
+
+  if (endedChatNotice && ended) {
+    endedChatNotice.textContent = isRemovedFromGroup(chat)
+      ? "Du wurdest aus dieser Lerngruppe entfernt. Du kannst keine neuen Nachrichten senden oder empfangen."
+      : "Diese Lernpartnerschaft wurde beendet.";
   }
 
   messageInput.disabled = !hasSelectedChat || ended;
@@ -438,7 +542,10 @@ function updateMessageFormState(chat) {
   }
 
   if (ended) {
-    messageInput.placeholder = "Diese Lernpartnerschaft wurde beendet.";
+    messageInput.placeholder = isRemovedFromGroup(chat)
+      ? "Du wurdest aus dieser Lerngruppe entfernt."
+      : "Diese Lernpartnerschaft wurde beendet.";
+
     return;
   }
 
@@ -651,7 +758,9 @@ function renderContacts(list = chats, searchValue = "") {
       : partner?.fullname || "Kontakt";
 
     const avatarURL = isGroup ? "" : partner?.photoURL || DEFAULT_PROFILE_PHOTO;
-    const memberCount = isGroup ? (chat.participants || []).length : 0;
+    const memberCount = isGroup
+      ? getActiveGroupParticipantIds(chat).length
+      : 0;
 
     const item = document.createElement("div");
 
@@ -725,7 +834,7 @@ function renderContacts(list = chats, searchValue = "") {
 
 function renderChatHeader(chat) {
   if (isGroupChat(chat)) {
-    const membersCount = (chat.participants || []).length;
+    const membersCount = getActiveGroupParticipantIds(chat).length;
 
     chatPartnerName.textContent = chat.groupName || "Lerngruppe";
     chatPartnerStatus.textContent = `${membersCount} Mitglieder`;
@@ -1136,53 +1245,644 @@ function closeGroupMemberProfileModal() {
 }
 
 /* =========================
-   MODIFICATION: panneau de droite pour les groupes d'étude
-   Au lieu du profil d'un seul partenaire, il affiche les membres du groupe.
+   MODIFICATION: vérifie si l'utilisateur actuel est admin du groupe
+   Le créateur reste aussi admin grâce au fallback createdBy.
+========================= */
+function isCurrentUserGroupAdmin(chat = activeChat) {
+  if (!currentUser || !isGroupChat(chat)) {
+    return false;
+  }
+
+  return (
+    chat.admins?.includes(currentUser.uid) ||
+    chat.createdBy === currentUser.uid
+  );
+}
+
+/* =========================
+   MODIFICATION: fermer la modal de gestion des membres
+========================= */
+function closeManageGroupMembersModal() {
+  if (!manageGroupMembersModal) {
+    return;
+  }
+
+  manageGroupMembersModal.classList.add("hidden");
+
+  if (manageGroupMembersForm) {
+    manageGroupMembersForm.reset();
+  }
+
+  availablePartnersForActiveGroup = [];
+
+  if (availableGroupPartnersList) {
+    availableGroupPartnersList.innerHTML =
+      '<p class="empty-message">Partner werden geladen...</p>';
+  }
+
+  /* =========================
+    MODIFICATION: réinitialiser la section des membres retirés
+  ========================= */
+  if (removedGroupMembersList) {
+    removedGroupMembersList.innerHTML =
+      '<p class="empty-message">Keine entfernten Mitglieder.</p>';
+  }
+
+  updateManageGroupMembersCounter();
+}
+
+/* =========================
+   MODIFICATION: récupérer les partenaires acceptés non présents dans le groupe
+   Un admin ne peut ajouter que ses propres Lernpartner acceptés.
+========================= */
+async function loadAvailablePartnersForActiveGroup() {
+  if (!currentUser || !activeChat || !isGroupChat(activeChat)) {
+    return;
+  }
+
+  const requestsQuery = query(
+    collection(db, "partnerRequests"),
+    where("participants", "array-contains", currentUser.uid)
+  );
+
+  const snapshot = await getDocs(requestsQuery);
+
+  const existingParticipantIds = new Set(activeChat.participants || []);
+
+  const availablePartnerIds = [
+    ...new Set(
+      snapshot.docs
+        .map((requestDocument) => requestDocument.data())
+        .filter((request) => request.status === "accepted")
+        .map((request) =>
+          request.participants?.find(
+            (participantId) => participantId !== currentUser.uid
+          )
+        )
+        .filter(
+          (partnerId) =>
+            partnerId &&
+            partnerId !== currentUser.uid &&
+            !existingParticipantIds.has(partnerId)
+        )
+    ),
+  ];
+
+  availablePartnersForActiveGroup = await Promise.all(
+    availablePartnerIds.map((partnerId) => getUserData(partnerId))
+  );
+
+  renderAvailablePartnersForActiveGroup();
+}
+
+/* =========================
+   MODIFICATION: afficher les partenaires qui peuvent être ajoutés
+   Les membres déjà présents dans le groupe ne sont jamais affichés.
+========================= */
+function renderAvailablePartnersForActiveGroup() {
+  if (!availableGroupPartnersList) {
+    return;
+  }
+
+  if (availablePartnersForActiveGroup.length === 0) {
+    availableGroupPartnersList.innerHTML = `
+      <p class="empty-message">
+        Keine weiteren akzeptierten Lernpartner verfügbar.
+      </p>
+    `;
+
+    updateManageGroupMembersCounter();
+    return;
+  }
+
+  availableGroupPartnersList.innerHTML = availablePartnersForActiveGroup
+    .map(
+      (partner) => `
+        <label class="accepted-partner-option">
+          <input
+            type="checkbox"
+            class="add-group-member-checkbox"
+            value="${escapeHTML(partner.id)}"
+          />
+
+          <img
+            src="${escapeHTML(
+              partner.photoURL || DEFAULT_PROFILE_PHOTO
+            )}"
+            alt="Profilbild von ${escapeHTML(partner.fullname || "Partner")}"
+          />
+
+          <div>
+            <p class="accepted-partner-name">
+              ${escapeHTML(partner.fullname || "Unbekannter Nutzer")}
+            </p>
+
+            <p class="accepted-partner-meta">
+              ${escapeHTML(
+                partner.fachbereich ||
+                  partner.faculty ||
+                  partner.email ||
+                  "-"
+              )}
+            </p>
+          </div>
+        </label>
+      `
+    )
+    .join("");
+
+  const checkboxes = availableGroupPartnersList.querySelectorAll(
+    ".add-group-member-checkbox"
+  );
+
+  checkboxes.forEach((checkbox) => {
+    checkbox.addEventListener("change", updateManageGroupMembersCounter);
+  });
+
+  updateManageGroupMembersCounter();
+}
+
+/* =========================
+   MODIFICATION: récupérer les nouveaux membres sélectionnés
+========================= */
+function getSelectedNewGroupMemberIds() {
+  if (!availableGroupPartnersList) {
+    return [];
+  }
+
+  return Array.from(
+    availableGroupPartnersList.querySelectorAll(
+      ".add-group-member-checkbox:checked"
+    )
+  ).map((checkbox) => checkbox.value);
+}
+
+/* =========================
+   MODIFICATION: compteur de sélection dans la modal admin
+========================= */
+function updateManageGroupMembersCounter() {
+  if (!manageGroupMembersCounter) {
+    return;
+  }
+
+  const selectedCount = getSelectedNewGroupMemberIds().length;
+
+  manageGroupMembersCounter.textContent =
+    selectedCount === 0
+      ? "0 ausgewählt"
+      : `${selectedCount} ausgewählt`;
+}
+
+/* =========================
+   MODIFICATION: charger les membres retirés du groupe actif
+   Les identifiants sont conservés dans participants mais marqués dans removedMembers.
+========================= */
+async function loadRemovedMembersForActiveGroup() {
+  if (!activeChat || !isGroupChat(activeChat) || !removedGroupMembersList) {
+    return;
+  }
+
+  const removedMemberIds = activeChat.removedMembers || [];
+
+  if (removedMemberIds.length === 0) {
+    removedGroupMembersList.innerHTML =
+      '<p class="empty-message">Keine entfernten Mitglieder.</p>';
+    return;
+  }
+
+  const removedMembers = await Promise.all(
+    removedMemberIds.map((memberId) => getUserData(memberId))
+  );
+
+  renderRemovedMembersForActiveGroup(removedMembers);
+}
+
+/* =========================
+   MODIFICATION: afficher les membres retirés avec un bouton de réintégration
+========================= */
+function renderRemovedMembersForActiveGroup(removedMembers = []) {
+  if (!removedGroupMembersList) {
+    return;
+  }
+
+  if (removedMembers.length === 0) {
+    removedGroupMembersList.innerHTML =
+      '<p class="empty-message">Keine entfernten Mitglieder.</p>';
+    return;
+  }
+
+  removedGroupMembersList.innerHTML = removedMembers
+    .map(
+      (member) => `
+        <div class="removed-member-option">
+          <img
+            src="${escapeHTML(member.photoURL || DEFAULT_PROFILE_PHOTO)}"
+            alt="Profilbild von ${escapeHTML(member.fullname || "Mitglied")}"
+          />
+
+          <div class="removed-member-info">
+            <p class="removed-member-name">
+              ${escapeHTML(member.fullname || member.email || "Mitglied")}
+            </p>
+
+            <p class="removed-member-meta">
+              ${escapeHTML(
+                member.fachbereich ||
+                  member.faculty ||
+                  member.email ||
+                  "-"
+              )}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="restore-group-member-btn"
+            data-member-id="${escapeHTML(member.id)}"
+          >
+            Wieder hinzufügen
+          </button>
+        </div>
+      `
+    )
+    .join("");
+
+  const restoreButtons = removedGroupMembersList.querySelectorAll(
+    ".restore-group-member-btn"
+  );
+
+  restoreButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      restoreMemberToGroup(button.dataset.memberId);
+    });
+  });
+}
+
+/* =========================
+   MODIFICATION: réintégrer un membre retiré
+   Il redevient actif, retrouve le droit d'écrire et reçoit les futurs messages.
+========================= */
+async function restoreMemberToGroup(memberId) {
+  if (!activeChatId || !activeChat || !isGroupChat(activeChat)) {
+    return;
+  }
+
+  if (!isCurrentUserGroupAdmin()) {
+    showModal(
+      "warning",
+      "Keine Berechtigung",
+      "Nur Admins können entfernte Mitglieder wieder hinzufügen."
+    );
+    return;
+  }
+
+  const member = getChatMembers(activeChat).find(
+    (user) => user.id === memberId
+  );
+
+  const memberName = member?.fullname || "dieses Mitglied";
+
+  showModal(
+    "warning",
+    "Mitglied wieder hinzufügen",
+    `Möchtest du ${memberName} wieder zur Lerngruppe hinzufügen?`,
+    async () => {
+      try {
+        await updateDoc(doc(db, "chats", activeChatId), {
+          removedMembers: arrayRemove(memberId),
+
+          [`removedMemberDetails.${memberId}`]: deleteField(),
+
+          [`unreadCount.${memberId}`]: 0,
+
+          updatedAt: serverTimestamp(),
+        });
+
+        showModal(
+          "success",
+          "Mitglied wieder hinzugefügt",
+          `${memberName} ist wieder ein aktives Mitglied der Lerngruppe.`
+        );
+
+        await loadRemovedMembersForActiveGroup();
+      } catch (error) {
+        console.error(error);
+
+        showModal(
+          "error",
+          "Fehler",
+          "Das Mitglied konnte nicht wieder hinzugefügt werden."
+        );
+      }
+    }
+  );
+}
+
+/* =========================
+   MODIFICATION: ouvrir la modal réservée aux admins
+========================= */
+async function openManageGroupMembersModal() {
+  if (!activeChat || !isGroupChat(activeChat)) {
+    return;
+  }
+
+  if (!isCurrentUserGroupAdmin()) {
+    showModal(
+      "warning",
+      "Keine Berechtigung",
+      "Nur Admins können neue Mitglieder zur Lerngruppe hinzufügen."
+    );
+    return;
+  }
+
+  if (!manageGroupMembersModal || !availableGroupPartnersList) {
+    return;
+  }
+
+  availableGroupPartnersList.innerHTML =
+    '<p class="empty-message">Partner werden geladen...</p>';
+
+  updateManageGroupMembersCounter();
+
+  manageGroupMembersModal.classList.remove("hidden");
+
+  try {
+    /* =========================
+      MODIFICATION: charger simultanément les partenaires disponibles
+      et les membres retirés pouvant être réintégrés.
+    ========================= */
+    await Promise.all([
+      loadAvailablePartnersForActiveGroup(),
+      loadRemovedMembersForActiveGroup(),
+    ]);
+  } catch (error) {
+    console.error(error);
+
+    availableGroupPartnersList.innerHTML =
+      '<p class="empty-message">Partner konnten nicht geladen werden.</p>';
+
+    showModal(
+      "error",
+      "Fehler",
+      "Die verfügbaren Lernpartner konnten nicht geladen werden."
+    );
+  }
+}
+
+/* =========================
+   MODIFICATION: ajouter les participants sélectionnés dans Firestore
+   participants et unreadCount sont mis à jour en une seule opération.
+========================= */
+async function addSelectedMembersToGroup() {
+  if (!activeChatId || !activeChat || !isGroupChat(activeChat)) {
+    return;
+  }
+
+  if (!isCurrentUserGroupAdmin()) {
+    showModal(
+      "warning",
+      "Keine Berechtigung",
+      "Nur Admins können neue Mitglieder hinzufügen."
+    );
+    return;
+  }
+
+  const selectedMemberIds = getSelectedNewGroupMemberIds();
+
+  if (selectedMemberIds.length === 0) {
+    showModal(
+      "warning",
+      "Keine Teilnehmer ausgewählt",
+      "Bitte wähle mindestens einen Lernpartner aus."
+    );
+    return;
+  }
+
+  const updates = {
+    participants: arrayUnion(...selectedMemberIds),
+    updatedAt: serverTimestamp(),
+  };
+
+  selectedMemberIds.forEach((memberId) => {
+    updates[`unreadCount.${memberId}`] = 0;
+  });
+
+  if (addGroupMembersBtn) {
+    addGroupMembersBtn.disabled = true;
+    addGroupMembersBtn.textContent = "Mitglieder werden hinzugefügt...";
+  }
+
+  try {
+    await updateDoc(doc(db, "chats", activeChatId), updates);
+
+    closeManageGroupMembersModal();
+
+    showModal(
+      "success",
+      "Mitglieder hinzugefügt",
+      "Die ausgewählten Lernpartner wurden zur Lerngruppe hinzugefügt."
+    );
+  } catch (error) {
+    console.error(error);
+
+    showModal(
+      "error",
+      "Fehler",
+      "Die neuen Mitglieder konnten nicht hinzugefügt werden."
+    );
+  } finally {
+    if (addGroupMembersBtn) {
+      addGroupMembersBtn.disabled = false;
+      addGroupMembersBtn.textContent = "Mitglieder hinzufügen";
+    }
+  }
+}
+
+/* =========================
+   MODIFICATION: retirer un membre sans supprimer le groupe de ses contacts
+   Le membre reste dans participants afin de voir le groupe, mais il est marqué comme retiré.
+========================= */
+async function removeMemberFromGroup(memberId) {
+  if (!currentUser || !activeChatId || !activeChat || !isGroupChat(activeChat)) {
+    return;
+  }
+
+  if (!isCurrentUserGroupAdmin()) {
+    showModal(
+      "warning",
+      "Keine Berechtigung",
+      "Nur Admins können Mitglieder aus der Lerngruppe entfernen."
+    );
+    return;
+  }
+
+  if (memberId === currentUser.uid) {
+    showModal(
+      "info",
+      "Eigenes Profil",
+      "Du kannst dich nicht über diesen Button entfernen. Dafür wird später die Funktion „Gruppe verlassen“ verwendet."
+    );
+    return;
+  }
+
+  const member = getChatMembers(activeChat).find(
+    (user) => user.id === memberId
+  );
+
+  const memberName = member?.fullname || "dieses Mitglied";
+
+  showModal(
+    "warning",
+    "Mitglied entfernen",
+    `Möchtest du ${memberName} wirklich aus der Lerngruppe entfernen?`,
+    async () => {
+      try {
+        await updateDoc(doc(db, "chats", activeChatId), {
+          removedMembers: arrayUnion(memberId),
+
+          [`removedMemberDetails.${memberId}`]: {
+            removedAt: new Date(),
+            removedBy: currentUser.uid,
+          },
+
+          admins: arrayRemove(memberId),
+
+          [`unreadCount.${memberId}`]: 0,
+
+          updatedAt: serverTimestamp(),
+        });
+
+        showModal(
+          "success",
+          "Mitglied entfernt",
+          `${memberName} wurde aus der Lerngruppe entfernt. Die Person sieht den Chat weiterhin, kann aber keine Nachrichten mehr senden oder empfangen.`
+        );
+      } catch (error) {
+        console.error(error);
+
+        showModal(
+          "error",
+          "Fehler",
+          "Das Mitglied konnte nicht aus der Lerngruppe entfernt werden."
+        );
+      }
+    }
+  );
+}
+
+/* =========================
+   MODIFICATION: panneau groupe avec boutons admin
+   Les admins peuvent ajouter ou retirer des membres.
 ========================= */
 /* =========================
-   MODIFICATION: panneau de droite pour les groupes d'étude
-   Chaque membre possède maintenant un bouton "Profil ansehen".
+   MODIFICATION: panneau groupe avec membres actifs uniquement
+   Un membre retiré ne voit plus la liste des participants.
+   Les membres actifs ne voient plus les utilisateurs retirés.
 ========================= */
 function renderGroupPanel(chat) {
-  const members = getChatMembers(chat);
+  const userWasRemoved = isRemovedFromGroup(chat);
 
   profilePhoto.src = DEFAULT_PROFILE_PHOTO;
   profileName.textContent = chat.groupName || "Lerngruppe";
 
+  /* =========================
+     MODIFICATION: affichage spécial pour l'utilisateur retiré
+     Il garde le groupe dans ses contacts mais ne voit plus les membres actifs.
+  ========================= */
+  if (userWasRemoved) {
+    if (profileInfo) {
+      profileInfo.innerHTML = `
+        <p><strong>Typ:</strong> <span>Lerngruppe</span></p>
+
+        <p>
+          <strong>Status:</strong>
+          <span>Aus Lerngruppe entfernt</span>
+        </p>
+
+        <p class="empty-message">
+          Du wurdest aus dieser Lerngruppe entfernt.
+          Du kannst keine neuen Nachrichten senden oder empfangen.
+        </p>
+      `;
+    }
+
+    profilePhoto.onclick = null;
+    return;
+  }
+
+  const members = getVisibleGroupMembers(chat);
+  const currentUserIsAdmin = isCurrentUserGroupAdmin(chat);
+
   const membersHTML =
     members.length > 0
       ? members
-          .map(
-            (member) => `
+          .map((member) => {
+            const isMemberAdmin = chat.admins?.includes(member.id);
+
+            const canRemoveMember =
+              currentUserIsAdmin &&
+              member.id !== currentUser.uid;
+
+            return `
               <div class="group-member-item">
                 <div class="group-member-main">
                   <img
-                    src="${escapeHTML(member.photoURL || DEFAULT_PROFILE_PHOTO)}"
-                    alt="Profilbild von ${escapeHTML(member.fullname || "Mitglied")}"
+                    src="${escapeHTML(
+                      member.photoURL || DEFAULT_PROFILE_PHOTO
+                    )}"
+                    alt="Profilbild von ${escapeHTML(
+                      member.fullname || "Mitglied"
+                    )}"
                   />
 
                   <span>
                     ${escapeHTML(member.fullname || member.email || "Mitglied")}
-                    ${
-                      chat.admins?.includes(member.id)
-                        ? "<strong> · Admin</strong>"
-                        : ""
-                    }
+                    ${isMemberAdmin ? "<strong> · Admin</strong>" : ""}
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  class="group-member-profile-btn"
-                  data-member-id="${escapeHTML(member.id)}"
-                >
-                  Profil ansehen
-                </button>
+                <div class="group-member-buttons">
+                  <button
+                    type="button"
+                    class="group-member-profile-btn"
+                    data-member-id="${escapeHTML(member.id)}"
+                  >
+                    Profil ansehen
+                  </button>
+
+                  ${
+                    canRemoveMember
+                      ? `
+                        <button
+                          type="button"
+                          class="remove-group-member-btn"
+                          data-member-id="${escapeHTML(member.id)}"
+                        >
+                          Entfernen
+                        </button>
+                      `
+                      : ""
+                  }
+                </div>
               </div>
-            `
-          )
+            `;
+          })
           .join("")
-      : '<p class="empty-message">Keine Mitglieder gefunden.</p>';
+      : '<p class="empty-message">Keine aktiven Mitglieder gefunden.</p>';
+
+  const adminActionsHTML = currentUserIsAdmin
+    ? `
+      <div class="group-management-actions">
+        <button
+          type="button"
+          id="manageGroupMembersBtn"
+          class="manage-group-members-btn"
+        >
+          Mitglieder verwalten
+        </button>
+      </div>
+    `
+    : "";
 
   if (profileInfo) {
     profileInfo.innerHTML = `
@@ -1193,18 +1893,41 @@ function renderGroupPanel(chat) {
       <div class="group-member-list">
         ${membersHTML}
       </div>
+
+      ${adminActionsHTML}
     `;
   }
 
-  const profileButtons = profileInfo.querySelectorAll(
+  const profileButtons = profileInfo?.querySelectorAll(
     ".group-member-profile-btn"
   );
 
-  profileButtons.forEach((button) => {
+  profileButtons?.forEach((button) => {
     button.addEventListener("click", () => {
       openGroupMemberProfileModal(button.dataset.memberId);
     });
   });
+
+  const removeButtons = profileInfo?.querySelectorAll(
+    ".remove-group-member-btn"
+  );
+
+  removeButtons?.forEach((button) => {
+    button.addEventListener("click", () => {
+      removeMemberFromGroup(button.dataset.memberId);
+    });
+  });
+
+  const manageGroupMembersBtn = document.getElementById(
+    "manageGroupMembersBtn"
+  );
+
+  if (manageGroupMembersBtn) {
+    manageGroupMembersBtn.addEventListener(
+      "click",
+      openManageGroupMembersModal
+    );
+  }
 
   profilePhoto.onclick = null;
 }
@@ -1566,6 +2289,31 @@ emojiOptions.forEach((emojiOption) => {
 });
 
 /* =========================
+   MODIFICATION: événements de la modal de gestion des participants
+========================= */
+if (closeManageGroupMembersModalBtn) {
+  closeManageGroupMembersModalBtn.addEventListener(
+    "click",
+    closeManageGroupMembersModal
+  );
+}
+
+if (manageGroupMembersBackdrop) {
+  manageGroupMembersBackdrop.addEventListener(
+    "click",
+    closeManageGroupMembersModal
+  );
+}
+
+if (manageGroupMembersForm) {
+  manageGroupMembersForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    await addSelectedMembersToGroup();
+  });
+}
+
+/* =========================
    MODIFICATION: fermeture du picker emoji en cliquant ailleurs
 ========================= */
 document.addEventListener("click", (event) => {
@@ -1759,9 +2507,16 @@ function renderMessages(messages) {
     const isDeleted = message.deleted === true;
 
     const readBy = message.readBy || [];
-    const otherParticipantIds = (activeChat?.participants || []).filter(
-      (participantId) => participantId !== currentUser.uid
-    );
+    /* =========================
+      MODIFICATION: les membres retirés ne comptent plus pour les coches de lecture
+    ========================= */
+    const otherParticipantIds = isGroupChat(activeChat)
+      ? getActiveGroupParticipantIds(activeChat).filter(
+          (participantId) => participantId !== currentUser.uid
+        )
+      : (activeChat?.participants || []).filter(
+          (participantId) => participantId !== currentUser.uid
+        );
 
     const allOtherParticipantsHaveRead = otherParticipantIds.every(
       (participantId) => readBy.includes(participantId)
@@ -1963,11 +2718,38 @@ function subscribeToMessages(chatId) {
         id: messageDocument.id,
         ...messageDocument.data(),
       }));
-            // Modification : sauvegarde locale des messages actifs pour médias/liens/recherche.
-      activeMessages = messages;
+            /* =========================
+              MODIFICATION: un membre retiré voit uniquement l'historique avant son retrait
+              Les messages publiés après son retrait ne sont ni affichés ni marqués comme lus.
+            ========================= */
+            const removalDate = getGroupRemovalDate(activeChat);
 
-      renderMessages(messages);
-      await markMessagesAsRead(chatId, snapshot.docs);
+            const visibleMessages =
+              isRemovedFromGroup(activeChat) && removalDate
+                ? messages.filter((message) => {
+                    if (!message.createdAt) {
+                      return false;
+                    }
+
+                    const messageDate = message.createdAt.toDate
+                      ? message.createdAt.toDate()
+                      : new Date(message.createdAt);
+
+                    const removedAtDate = removalDate.toDate
+                      ? removalDate.toDate()
+                      : new Date(removalDate);
+
+                    return messageDate <= removedAtDate;
+                  })
+                : messages;
+
+            activeMessages = visibleMessages;
+
+            renderMessages(visibleMessages);
+
+            if (!isRemovedFromGroup(activeChat)) {
+              await markMessagesAsRead(chatId, snapshot.docs);
+            }
 
       // Modification : si la modal recherche est ouverte, on met les résultats à jour automatiquement.
       if (
@@ -2080,11 +2862,16 @@ async function sendMessage() {
   if (isChatEnded(activeChat)) {
     showModal(
       "info",
-      "Lernpartnerschaft beendet",
-      isGroupChat(activeChat)
-        ? "Diese Lerngruppe wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
-        : "Diese Lernpartnerschaft wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
+      isRemovedFromGroup(activeChat)
+        ? "Aus Lerngruppe entfernt"
+        : "Lernpartnerschaft beendet",
+      isRemovedFromGroup(activeChat)
+        ? "Du wurdest aus dieser Lerngruppe entfernt und kannst keine neuen Nachrichten senden."
+        : isGroupChat(activeChat)
+          ? "Diese Lerngruppe wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
+          : "Diese Lernpartnerschaft wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
     );
+
     return;
   }
 
@@ -2140,7 +2927,11 @@ async function sendMessage() {
   ========================= */
   const unreadUpdates = {};
 
-  (activeChat.participants || []).forEach((participantId) => {
+  /* =========================
+    MODIFICATION: seuls les membres actifs reçoivent les nouveaux messages
+    Les membres retirés ne reçoivent plus de notification ni de nouveau message.
+  ========================= */
+  getActiveGroupParticipantIds(activeChat).forEach((participantId) => {
     if (participantId !== currentUser.uid) {
       unreadUpdates[`unreadCount.${participantId}`] = increment(1);
     }
@@ -2656,6 +3447,7 @@ document.addEventListener("keydown", (event) => {
   closeChatContentModal(messageSearchModal);
   closeGroupModal();
   closeGroupMemberProfileModal();
+  closeManageGroupMembersModal();
   closeModal();
 });
 

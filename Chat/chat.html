@@ -133,9 +133,7 @@
         </div>
 
         <!-- Modification : message permanent affiché quand la Lernpartnerschaft est terminée -->
-        <div id="endedChatNotice" class="ended-chat-notice hidden">
-          Diese Lernpartnerschaft wurde beendet.
-        </div>
+        <div id="endedChatNotice" class="ended-chat-notice hidden"></div>
 
         <form id="messageForm" class="message-form">
           <label for="fileInput" class="attach-btn" title="Datei anhängen">
@@ -450,6 +448,67 @@
         >
           <p class="empty-message">Profil wird geladen...</p>
         </div>
+      </div>
+    </div>
+
+    <!-- =========================
+     MODIFICATION: Modal pour ajouter des participants à un groupe existant
+     Cette modal est disponible uniquement pour les admins du groupe.
+========================= -->
+    <div id="manageGroupMembersModal" class="chat-content-modal hidden">
+      <div id="manageGroupMembersBackdrop" class="chat-content-backdrop"></div>
+
+      <div class="chat-content-box manage-group-members-box">
+        <div class="chat-content-header">
+          <h2>Mitglieder hinzufügen</h2>
+
+          <button
+            type="button"
+            id="closeManageGroupMembersModalBtn"
+            class="chat-content-close"
+            aria-label="Mitgliederverwaltung schließen"
+          >
+            ×
+          </button>
+        </div>
+
+        <form id="manageGroupMembersForm" class="group-form">
+          <p class="manage-group-members-description">
+            Wähle akzeptierte Lernpartner aus, die du zur Lerngruppe hinzufügen
+            möchtest.
+          </p>
+
+          <div class="group-members-header">
+            <strong>Neue Teilnehmer auswählen</strong>
+            <span id="manageGroupMembersCounter">0 ausgewählt</span>
+          </div>
+
+          <div id="availableGroupPartnersList" class="accepted-partners-list">
+            <p class="empty-message">Partner werden geladen...</p>
+          </div>
+
+          <!-- =========================
+              MODIFICATION: section des membres retirés dans la modal admin
+              Seul un administrateur peut réintégrer un ancien membre.
+          ========================= -->
+          <div class="removed-members-section">
+            <div class="group-members-header">
+              <strong>Entfernte Mitglieder</strong>
+            </div>
+
+            <div id="removedGroupMembersList" class="accepted-partners-list">
+              <p class="empty-message">Keine entfernten Mitglieder.</p>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            id="addGroupMembersBtn"
+            class="create-group-btn"
+          >
+            Mitglieder hinzufügen
+          </button>
+        </form>
       </div>
     </div>
 

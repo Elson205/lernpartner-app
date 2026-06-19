@@ -781,7 +781,7 @@ header {
 .custom-modal {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: 13000;
 }
 
 .modal-backdrop {
@@ -1888,4 +1888,146 @@ header {
   color: #6b7280;
   font-size: 0.85rem;
   text-align: center;
+}
+
+/* =========================
+   MODIFICATION: GESTION DES PARTICIPANTS D'UN GROUPE
+   Ces styles concernent uniquement la modal utilisée par les admins.
+========================= */
+.manage-group-members-box {
+  width: min(92vw, 560px);
+}
+
+.manage-group-members-description {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.45;
+}
+
+.group-management-actions {
+  margin-top: 1rem;
+}
+
+.manage-group-members-btn {
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  background: #0b2850;
+  color: white;
+  padding: 0.75rem 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+
+.manage-group-members-btn:hover {
+  background: #17457f;
+  transform: translateY(-1px);
+}
+
+/* =========================
+   MODIFICATION: boutons de gestion des membres d'un groupe
+   Le bouton supprimer est visible uniquement pour les admins.
+========================= */
+.group-member-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.remove-group-member-btn {
+  border: none;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+
+.remove-group-member-btn:hover {
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 760px) {
+  .group-member-buttons {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .group-member-buttons button {
+    flex: 1;
+  }
+}
+
+/* =========================
+   MODIFICATION: MEMBRES RETIRÉS D'UN GROUPE
+   Cette zone permet à l'admin de réintégrer un ancien membre.
+========================= */
+.removed-members-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.removed-member-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e9f0;
+}
+
+.removed-member-option:last-child {
+  border-bottom: none;
+}
+
+.removed-member-option img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.removed-member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.removed-member-name {
+  margin: 0;
+  color: #111827;
+  font-weight: 800;
+}
+
+.removed-member-meta {
+  margin: 0.15rem 0 0;
+  color: #6b7280;
+  font-size: 0.82rem;
+}
+
+.restore-group-member-btn {
+  border: none;
+  border-radius: 999px;
+  background: #d8f8df;
+  color: #15803d;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.restore-group-member-btn:hover {
+  background: #bbf7d0;
 }
