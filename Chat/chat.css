@@ -781,7 +781,7 @@ header {
 .custom-modal {
   position: fixed;
   inset: 0;
-  z-index: 13000;
+  z-index: 20000;
 }
 
 .modal-backdrop {
@@ -2197,4 +2197,143 @@ header {
   .chat-info-member-profile-btn {
     width: 100%;
   }
+}
+
+/* =========================
+   MODIFICATION: styles pour quitter une Lerngruppe
+========================= */
+.leave-group-modal-box {
+  width: min(92vw, 480px);
+}
+
+.leave-group-modal-content {
+  padding: 1.2rem;
+}
+
+.leave-group-modal-content > p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.5;
+}
+
+#leaveGroupAdminTransferSection {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1.1rem;
+  padding: 0.9rem;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  background: #fffbeb;
+}
+
+#leaveGroupAdminTransferSection.hidden {
+  display: none;
+}
+
+#leaveGroupAdminTransferSection label {
+  color: #92400e;
+  font-weight: 800;
+}
+
+#newGroupAdminSelect {
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  font: inherit;
+}
+
+.leave-group-admin-hint {
+  margin: 0;
+  color: #92400e;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.leave-group-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  margin-top: 1.2rem;
+}
+
+.leave-group-cancel-btn,
+.leave-group-confirm-btn,
+.leave-group-btn,
+.chat-info-leave-group-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.leave-group-cancel-btn {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.leave-group-confirm-btn,
+.leave-group-btn,
+.chat-info-leave-group-btn {
+  background: #b91c1c;
+  color: white;
+}
+
+.leave-group-confirm-btn:hover,
+.leave-group-btn:hover,
+.chat-info-leave-group-btn:hover {
+  background: #991b1b;
+}
+
+.chat-info-group-actions {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.leave-group-btn {
+  width: 100%;
+  margin-top: 0.7rem;
+}
+
+.chat-info-leave-group-btn {
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .leave-group-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .leave-group-cancel-btn,
+  .leave-group-confirm-btn {
+    width: 100%;
+  }
+}
+
+/* =========================
+   MODIFICATION: erreur affichée directement dans "Gruppe verlassen"
+========================= */
+.leave-group-error {
+  margin: 1rem 0 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.leave-group-error.hidden {
+  display: none;
+}
+
+/* =========================
+   MODIFICATION: la modal Gruppe verlassen passe devant les autres modales de contenu
+========================= */
+#leaveGroupModal {
+  z-index: 12500;
 }

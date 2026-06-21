@@ -144,6 +144,26 @@ const chatInfoTitle = document.getElementById("chatInfoTitle");
 const chatInfoContent = document.getElementById("chatInfoContent");
 
 /* =========================
+   MODIFICATION: éléments de la modal "Gruppe verlassen"
+   Cette modal permet à un membre de quitter le groupe en toute sécurité.
+========================= */
+const leaveGroupModal = document.getElementById("leaveGroupModal");
+const leaveGroupBackdrop = document.getElementById("leaveGroupBackdrop");
+const closeLeaveGroupModalBtn = document.getElementById(
+  "closeLeaveGroupModalBtn"
+);
+const leaveGroupMessage = document.getElementById("leaveGroupMessage");
+const leaveGroupError = document.getElementById("leaveGroupError");
+const leaveGroupAdminTransferSection = document.getElementById(
+  "leaveGroupAdminTransferSection"
+);
+const newGroupAdminSelect = document.getElementById("newGroupAdminSelect");
+const cancelLeaveGroupBtn = document.getElementById("cancelLeaveGroupBtn");
+const confirmLeaveGroupBtn = document.getElementById("confirmLeaveGroupBtn");
+
+let leavingGroupRequiresNewAdmin = false;
+
+/* =========================
    MODIFICATION: éléments de la modal médias/fichiers
 ========================= */
 const mediaFilesModal = document.getElementById("mediaFilesModal");
@@ -494,7 +514,9 @@ function renderRequestStatus(chat) {
 
   if (isGroupChat(chat)) {
     if (isRemovedFromGroup(chat)) {
-      requestStatus.textContent = "Aus Lerngruppe entfernt";
+      requestStatus.textContent = didCurrentUserLeaveGroup(chat)
+        ? "Lerngruppe verlassen"
+        : "Aus Lerngruppe entfernt";
       requestStatus.classList.add("ended");
       return;
     }
@@ -525,7 +547,7 @@ function updateMessageFormState(chat) {
 
   if (endedChatNotice && ended) {
     endedChatNotice.textContent = isRemovedFromGroup(chat)
-      ? "Du wurdest aus dieser Lerngruppe entfernt. Du kannst keine neuen Nachrichten senden oder empfangen."
+      ? getGroupDepartureMessage(chat)
       : "Diese Lernpartnerschaft wurde beendet.";
   }
 
@@ -556,7 +578,7 @@ function updateMessageFormState(chat) {
 
   if (ended) {
     messageInput.placeholder = isRemovedFromGroup(chat)
-      ? "Du wurdest aus dieser Lerngruppe entfernt."
+      ? getGroupDepartureMessage(chat)
       : "Diese Lernpartnerschaft wurde beendet.";
 
     return;
@@ -1259,18 +1281,26 @@ function closeGroupMemberProfileModal() {
 }
 
 /* =========================
-   MODIFICATION: vérifie si l'utilisateur actuel est admin du groupe
-   Le créateur reste aussi admin grâce au fallback createdBy.
+   MODIFICATION: vérification sécurisée du statut admin
+   Un membre retiré ou ayant quitté le groupe ne doit jamais garder ses droits.
 ========================= */
 function isCurrentUserGroupAdmin(chat = activeChat) {
-  if (!currentUser || !isGroupChat(chat)) {
+  if (
+    !currentUser ||
+    !isGroupChat(chat) ||
+    isRemovedFromGroup(chat, currentUser.uid)
+  ) {
     return false;
   }
 
-  return (
-    chat.admins?.includes(currentUser.uid) ||
-    chat.createdBy === currentUser.uid
-  );
+  const admins = Array.isArray(chat.admins) ? chat.admins : [];
+
+  /* Les anciens groupes peuvent ne pas avoir de tableau admins. */
+  if (admins.length === 0) {
+    return chat.createdBy === currentUser.uid;
+  }
+
+  return admins.includes(currentUser.uid);
 }
 
 /* =========================
@@ -1456,7 +1486,13 @@ async function loadRemovedMembersForActiveGroup() {
     return;
   }
 
-  const removedMemberIds = activeChat.removedMembers || [];
+  /* =========================
+    MODIFICATION: un membre parti volontairement ne doit pas être réajouté automatiquement
+  ========================= */
+  const removedMemberIds = (activeChat.removedMembers || []).filter(
+    (memberId) =>
+      activeChat.removedMemberDetails?.[memberId]?.reason !== "left"
+  );
 
   if (removedMemberIds.length === 0) {
     removedGroupMembersList.innerHTML =
@@ -1884,19 +1920,34 @@ function renderGroupPanel(chat) {
           .join("")
       : '<p class="empty-message">Keine aktiven Mitglieder gefunden.</p>';
 
-  const adminActionsHTML = currentUserIsAdmin
-    ? `
-      <div class="group-management-actions">
-        <button
-          type="button"
-          id="manageGroupMembersBtn"
-          class="manage-group-members-btn"
-        >
-          Mitglieder verwalten
-        </button>
-      </div>
-    `
-    : "";
+  /* =========================
+    MODIFICATION: actions visibles dans le panneau droit sur ordinateur
+  ========================= */
+  const groupActionsHTML = `
+    <div class="group-management-actions">
+      ${
+        currentUserIsAdmin
+          ? `
+            <button
+              type="button"
+              id="manageGroupMembersBtn"
+              class="manage-group-members-btn"
+            >
+              Mitglieder verwalten
+            </button>
+          `
+          : ""
+      }
+
+      <button
+        type="button"
+        class="leave-group-btn"
+        data-leave-group="true"
+      >
+        Gruppe verlassen
+      </button>
+    </div>
+  `;
 
   if (profileInfo) {
     profileInfo.innerHTML = `
@@ -1908,7 +1959,7 @@ function renderGroupPanel(chat) {
         ${membersHTML}
       </div>
 
-      ${adminActionsHTML}
+      ${groupActionsHTML}
     `;
   }
 
@@ -1941,6 +1992,20 @@ function renderGroupPanel(chat) {
       "click",
       openManageGroupMembersModal
     );
+  }
+
+  /* =========================
+    MODIFICATION: départ depuis le panneau droit sur ordinateur
+  ========================= */
+  const leaveGroupBtn = profileInfo?.querySelector(
+    '[data-leave-group="true"]'
+  );
+
+  if (leaveGroupBtn) {
+    leaveGroupBtn.addEventListener("click", () => {
+      closeChatInfoModal();
+      openLeaveGroupModal();
+    });
   }
 
   profilePhoto.onclick = null;
@@ -2069,6 +2134,250 @@ function renderPrivateChatInfo(partner) {
 }
 
 /* =========================
+   MODIFICATION: différencier un membre retiré d'un membre ayant quitté volontairement
+========================= */
+function didCurrentUserLeaveGroup(chat = activeChat) {
+  if (!chat || !currentUser) {
+    return false;
+  }
+
+  return (
+    chat.removedMemberDetails?.[currentUser.uid]?.reason === "left"
+  );
+}
+
+function getGroupDepartureMessage(chat = activeChat) {
+  return didCurrentUserLeaveGroup(chat)
+    ? "Du hast diese Lerngruppe verlassen. Du kannst keine neuen Nachrichten senden oder empfangen."
+    : "Du wurdest aus dieser Lerngruppe entfernt. Du kannst keine neuen Nachrichten senden oder empfangen.";
+}
+
+/* =========================
+   MODIFICATION: afficher une erreur sans ouvrir une deuxième modal
+========================= */
+function showLeaveGroupError(message) {
+  if (!leaveGroupError) {
+    return;
+  }
+
+  leaveGroupError.textContent = message;
+  leaveGroupError.classList.remove("hidden");
+}
+
+/* =========================
+   MODIFICATION: fermer la modal de départ du groupe
+========================= */
+function closeLeaveGroupModal() {
+  if (!leaveGroupModal) {
+    return;
+  }
+
+  leaveGroupModal.classList.add("hidden");
+  leavingGroupRequiresNewAdmin = false;
+
+  /* =========================
+    MODIFICATION: vider l'erreur quand la modal est fermée
+  ========================= */
+  if (leaveGroupError) {
+    leaveGroupError.textContent = "";
+    leaveGroupError.classList.add("hidden");
+  }
+
+  if (newGroupAdminSelect) {
+    newGroupAdminSelect.innerHTML =
+      '<option value="">Bitte auswählen</option>';
+  }
+
+  if (leaveGroupAdminTransferSection) {
+    leaveGroupAdminTransferSection.classList.add("hidden");
+  }
+}
+
+/* =========================
+   MODIFICATION: ouvrir la modal de départ du groupe
+   Le seul admin doit obligatoirement désigner un successeur.
+========================= */
+function openLeaveGroupModal() {
+  if (
+    !currentUser ||
+    !activeChat ||
+    !activeChatId ||
+    !isGroupChat(activeChat) ||
+    isRemovedFromGroup(activeChat)
+  ) {
+    return;
+  }
+
+  const activeMemberIds = getActiveGroupParticipantIds(activeChat);
+  const otherActiveMemberIds = activeMemberIds.filter(
+    (memberId) => memberId !== currentUser.uid
+  );
+
+  const currentUserIsAdmin = isCurrentUserGroupAdmin(activeChat);
+
+  const otherActiveAdmins = (activeChat.admins || []).filter(
+    (adminId) =>
+      adminId !== currentUser.uid &&
+      otherActiveMemberIds.includes(adminId)
+  );
+
+  leavingGroupRequiresNewAdmin =
+    currentUserIsAdmin &&
+    otherActiveMemberIds.length > 0 &&
+    otherActiveAdmins.length === 0;
+
+  if (leaveGroupMessage) {
+    leaveGroupMessage.textContent = leavingGroupRequiresNewAdmin
+      ? "Du bist der einzige Admin dieser Lerngruppe. Bitte bestimme zuerst einen neuen Admin."
+      : otherActiveMemberIds.length === 0
+        ? "Du bist das letzte aktive Mitglied. Beim Verlassen wird die Lerngruppe beendet."
+        : "Möchtest du diese Lerngruppe wirklich verlassen?";
+  }
+
+  if (leaveGroupAdminTransferSection && newGroupAdminSelect) {
+    leaveGroupAdminTransferSection.classList.toggle(
+      "hidden",
+      !leavingGroupRequiresNewAdmin
+    );
+
+    newGroupAdminSelect.innerHTML =
+      '<option value="">Bitte auswählen</option>';
+
+    if (leavingGroupRequiresNewAdmin) {
+      const activeMembers = getChatMembers(activeChat).filter((member) =>
+        otherActiveMemberIds.includes(member.id)
+      );
+
+      activeMembers.forEach((member) => {
+        const option = document.createElement("option");
+
+        option.value = member.id;
+        option.textContent =
+          member.fullname || member.email || "Mitglied";
+
+        newGroupAdminSelect.appendChild(option);
+      });
+    }
+  }
+
+  /* =========================
+    MODIFICATION: nettoyer une ancienne erreur avant chaque ouverture
+  ========================= */
+  if (leaveGroupError) {
+    leaveGroupError.textContent = "";
+    leaveGroupError.classList.add("hidden");
+  }
+
+  leaveGroupModal?.classList.remove("hidden");
+}
+
+/* =========================
+   MODIFICATION: quitter réellement le groupe
+   Le membre conserve l'historique, mais devient inactif et ne reçoit plus de messages.
+========================= */
+async function confirmLeaveGroup() {
+  if (
+    !currentUser ||
+    !activeChat ||
+    !activeChatId ||
+    !isGroupChat(activeChat)
+  ) {
+    return;
+  }
+
+  const activeMemberIds = getActiveGroupParticipantIds(activeChat);
+  const otherActiveMemberIds = activeMemberIds.filter(
+    (memberId) => memberId !== currentUser.uid
+  );
+
+  let newAdminId = null;
+
+  if (leavingGroupRequiresNewAdmin) {
+    newAdminId = newGroupAdminSelect?.value || "";
+
+    /* =========================
+        MODIFICATION: erreur affichée dans la modal actuelle
+        Aucune deuxième modal ne doit s'ouvrir au-dessus ou derrière.
+      ========================= */
+      if (!newAdminId || !otherActiveMemberIds.includes(newAdminId)) {
+        showLeaveGroupError(
+          "Bitte wähle ein aktives Mitglied als neuen Admin aus."
+        );
+
+        return;
+      }
+  }
+
+  const remainingAdmins = (activeChat.admins || []).filter(
+    (adminId) =>
+      adminId !== currentUser.uid &&
+      otherActiveMemberIds.includes(adminId)
+  );
+
+  if (newAdminId && !remainingAdmins.includes(newAdminId)) {
+    remainingAdmins.push(newAdminId);
+  }
+
+  const updates = {
+    removedMembers: arrayUnion(currentUser.uid),
+
+    [`removedMemberDetails.${currentUser.uid}`]: {
+      removedAt: new Date(),
+      removedBy: currentUser.uid,
+      reason: "left",
+    },
+
+    /* Le membre qui quitte perd toujours ses droits admin. */
+    admins: remainingAdmins,
+
+    [`unreadCount.${currentUser.uid}`]: 0,
+
+    updatedAt: serverTimestamp(),
+  };
+
+  /* Le dernier membre ferme le groupe. */
+  if (otherActiveMemberIds.length === 0) {
+    updates.active = false;
+    updates.lastMessage = "Die Lerngruppe wurde beendet.";
+    updates.lastMessageAt = serverTimestamp();
+  }
+
+  try {
+    if (confirmLeaveGroupBtn) {
+      confirmLeaveGroupBtn.disabled = true;
+      confirmLeaveGroupBtn.textContent = "Gruppe wird verlassen...";
+    }
+
+    await updateDoc(doc(db, "chats", activeChatId), updates);
+
+    closeLeaveGroupModal();
+    closeChatInfoModal();
+
+    showModal(
+      "success",
+      "Gruppe verlassen",
+      otherActiveMemberIds.length === 0
+        ? "Du hast die Lerngruppe verlassen. Die Gruppe wurde beendet."
+        : "Du hast die Lerngruppe verlassen."
+    );
+  } catch (error) {
+    console.error(error);
+
+    /* =========================
+      MODIFICATION: erreur Firebase affichée dans la modal actuelle
+    ========================= */
+    showLeaveGroupError(
+      "Die Lerngruppe konnte nicht verlassen werden. Bitte versuche es erneut."
+    );
+  } finally {
+    if (confirmLeaveGroupBtn) {
+      confirmLeaveGroupBtn.disabled = false;
+      confirmLeaveGroupBtn.textContent = "Gruppe verlassen";
+    }
+  }
+}
+
+/* =========================
    MODIFICATION: ouvrir les informations d'un groupe
    Les membres actifs voient les membres du groupe et les admins peuvent le gérer.
 ========================= */
@@ -2131,17 +2440,35 @@ function renderGroupChatInfo(chat) {
           .join("")
       : '<p class="empty-message">Keine aktiven Mitglieder gefunden.</p>';
 
-  const adminActionsHTML = currentUserIsAdmin
-    ? `
+  /* =========================
+    MODIFICATION: actions du groupe
+    Tous les membres peuvent quitter le groupe, seuls les admins peuvent le gérer.
+  ========================= */
+  const groupActionsHTML = `
+    <div class="chat-info-group-actions">
+      ${
+        currentUserIsAdmin
+          ? `
+            <button
+              type="button"
+              id="openGroupManagementFromInfoBtn"
+              class="chat-info-group-management-btn"
+            >
+              Mitglieder verwalten
+            </button>
+          `
+          : ""
+      }
+
       <button
         type="button"
-        id="openGroupManagementFromInfoBtn"
-        class="chat-info-group-management-btn"
+        class="chat-info-leave-group-btn"
+        data-leave-group="true"
       >
-        Mitglieder verwalten
+        Gruppe verlassen
       </button>
-    `
-    : "";
+    </div>
+  `;
 
   chatInfoContent.innerHTML = `
     <div class="chat-info-group-summary">
@@ -2153,7 +2480,7 @@ function renderGroupChatInfo(chat) {
       ${membersHTML}
     </div>
 
-    ${adminActionsHTML}
+    ${groupActionsHTML}
   `;
 
   const memberProfileButtons = chatInfoContent.querySelectorAll(
@@ -2177,7 +2504,18 @@ function renderGroupChatInfo(chat) {
       openManageGroupMembersModal();
     });
   }
-}
+
+  /* =========================
+    MODIFICATION: ouverture de la confirmation de départ
+  ========================= */
+  const leaveGroupBtn = chatInfoContent.querySelector(
+    '[data-leave-group="true"]'
+  );
+
+  if (leaveGroupBtn) {
+    leaveGroupBtn.addEventListener("click", openLeaveGroupModal);
+  }
+  }
 
 /* =========================
    MODIFICATION: ouvrir les informations selon le type de conversation
@@ -2640,6 +2978,25 @@ if (groupMemberProfileBackdrop) {
     "click",
     closeGroupMemberProfileModal
   );
+}
+
+/* =========================
+   MODIFICATION: événements de la modal "Gruppe verlassen"
+========================= */
+if (closeLeaveGroupModalBtn) {
+  closeLeaveGroupModalBtn.addEventListener("click", closeLeaveGroupModal);
+}
+
+if (leaveGroupBackdrop) {
+  leaveGroupBackdrop.addEventListener("click", closeLeaveGroupModal);
+}
+
+if (cancelLeaveGroupBtn) {
+  cancelLeaveGroupBtn.addEventListener("click", closeLeaveGroupModal);
+}
+
+if (confirmLeaveGroupBtn) {
+  confirmLeaveGroupBtn.addEventListener("click", confirmLeaveGroup);
 }
 
 /* =========================
