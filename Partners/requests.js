@@ -19,6 +19,7 @@ import {
   setDoc,
   serverTimestamp,
   arrayUnion,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 // Modification : import du système global de badges de notification.
@@ -463,14 +464,19 @@ document.addEventListener("keydown", (event) => {
 });
 
 /* =========================
-   MODIFICATION: Fonction pour terminer une collaboration acceptée
-   La demande passe à "ended" et le chat correspondant devient inactif.
+   MODIFICATION : fin atomique d’une collaboration.
+   La demande et le chat sont terminés ensemble, afin que les futures
+   règles Firestore puissent vérifier les deux écritures avec getAfter().
 ========================= */
 async function endCollaboration(requestId, otherUserId) {
   const chatId = createChatId(currentUser.uid, otherUserId);
 
-  // Modification : quand une collaboration est terminée, seul celui qui termine l'a déjà vue.
-  await updateDoc(doc(db, "partnerRequests", requestId), {
+  const batch = writeBatch(db);
+
+  const requestRef = doc(db, "partnerRequests", requestId);
+  const chatRef = doc(db, "chats", chatId);
+
+  batch.update(requestRef, {
     status: "ended",
     endedAt: serverTimestamp(),
     endedBy: currentUser.uid,
@@ -478,8 +484,8 @@ async function endCollaboration(requestId, otherUserId) {
     seenBy: [currentUser.uid],
   });
 
-  await setDoc(
-    doc(db, "chats", chatId),
+  batch.set(
+    chatRef,
     {
       requestStatus: "ended",
       active: false,
@@ -489,6 +495,8 @@ async function endCollaboration(requestId, otherUserId) {
     },
     { merge: true }
   );
+
+  await batch.commit();
 }
 
 /* =========================
@@ -573,18 +581,37 @@ function createReceivedCard(requestId, sender, senderId, status) {
   if (acceptBtn) {
     acceptBtn.addEventListener("click", async () => {
       try {
-        // Modification : quand une demande est acceptée, seul celui qui accepte l'a déjà vue.
-        await updateDoc(doc(db, "partnerRequests", requestId), {
+        /* =========================
+   MODIFICATION : acceptation atomique de la demande et création du chat.
+   La demande passe à accepted et le chat est créé ou réactivé
+   dans le même batch Firestore.
+========================= */
+        const chatId = createChatId(currentUser.uid, senderId);
+
+        const batch = writeBatch(db);
+
+        const requestRef = doc(db, "partnerRequests", requestId);
+        const chatRef = doc(db, "chats", chatId);
+
+        /* =========================
+          MODIFICATION : enregistrement du chat lié à la demande.
+          Le chatId permettra aux règles Firestore de vérifier que le chat
+          créé correspond bien à cette demande acceptée.
+        ========================= */
+        batch.update(requestRef, {
           status: "accepted",
           acceptedAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           seenBy: [currentUser.uid],
+          chatId,
         });
-
-        const chatId = createChatId(currentUser.uid, senderId);
-
-        await setDoc(
-          doc(db, "chats", chatId),
+                /* =========================
+          MODIFICATION : créer ou réactiver le chat privé.
+          archivedBy est réinitialisé afin que les deux utilisateurs
+          retrouvent le chat lorsqu’une nouvelle collaboration commence.
+        ========================= */
+        batch.set(
+          chatRef,
           {
             participants: [currentUser.uid, senderId],
             requestId,
@@ -605,6 +632,8 @@ function createReceivedCard(requestId, sender, senderId, status) {
           },
           { merge: true }
         );
+
+        await batch.commit();
 
         showModal(
           "success",
@@ -842,65 +871,85 @@ function createSentCard(requestId, receiver, receiverId, status) {
   return card;
 }
 
+/* =========================
+   MODIFICATION: chargement des demandes via participants
+   Cette requête est compatible avec les règles Firestore sécurisées.
+========================= */
 async function loadRequests() {
-  const receivedSnap = await getDocs(
-    query(
-      collection(db, "partnerRequests"),
-      where("receiverId", "==", currentUser.uid)
-    )
+  const requestsQuery = query(
+    collection(db, "partnerRequests"),
+    where("participants", "array-contains", currentUser.uid)
   );
+
+  const requestsSnapshot = await getDocs(requestsQuery);
+
+  const receivedRequests = [];
+  const sentRequests = [];
+
+  requestsSnapshot.forEach((docSnap) => {
+    const requestData = docSnap.data();
+
+    if (requestData.receiverId === currentUser.uid) {
+      receivedRequests.push({
+        id: docSnap.id,
+        ...requestData,
+      });
+    }
+
+    if (requestData.senderId === currentUser.uid) {
+      sentRequests.push({
+        id: docSnap.id,
+        ...requestData,
+      });
+    }
+  });
 
   receivedRequestsList.innerHTML = "";
 
-  let hasReceived = false;
-
-  for (const docSnap of receivedSnap.docs) {
-    const data = docSnap.data();
-
-    const sender = await getUser(data.senderId);
-
-    if (!sender) continue;
-
-    receivedRequestsList.appendChild(
-      createReceivedCard(docSnap.id, sender, data.senderId, data.status)
-    );
-
-    hasReceived = true;
-  }
-
-  if (!hasReceived) {
+  if (receivedRequests.length === 0) {
     receivedRequestsList.innerHTML =
       '<p class="empty-message">Keine erhaltenen Anfragen.</p>';
-  }
+  } else {
+    for (const requestData of receivedRequests) {
+      const sender = await getUser(requestData.senderId);
 
-  const sentSnap = await getDocs(
-    query(
-      collection(db, "partnerRequests"),
-      where("senderId", "==", currentUser.uid)
-    )
-  );
+      if (!sender) {
+        continue;
+      }
+
+      receivedRequestsList.appendChild(
+        createReceivedCard(
+          requestData.id,
+          sender,
+          requestData.senderId,
+          requestData.status
+        )
+      );
+    }
+  }
 
   sentRequestsList.innerHTML = "";
 
-  let hasSent = false;
-
-  for (const docSnap of sentSnap.docs) {
-    const data = docSnap.data();
-
-    const receiver = await getUser(data.receiverId);
-
-    if (!receiver) continue;
-
-    sentRequestsList.appendChild(
-      createSentCard(docSnap.id, receiver, data.receiverId, data.status)
-    );
-
-    hasSent = true;
-  }
-
-  if (!hasSent) {
+  if (sentRequests.length === 0) {
     sentRequestsList.innerHTML =
       '<p class="empty-message">Keine gesendeten Anfragen.</p>';
+  } else {
+    for (const requestData of sentRequests) {
+      const receiver = await getUser(requestData.receiverId);
+
+      if (!receiver) {
+        continue;
+      }
+
+      sentRequestsList.appendChild(
+        createSentCard(
+          requestData.id,
+          receiver,
+          requestData.receiverId,
+          requestData.status
+        )
+      );
+    }
   }
 }
 

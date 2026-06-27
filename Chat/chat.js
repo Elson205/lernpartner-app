@@ -24,7 +24,8 @@ import {
   increment,
   arrayUnion,
   arrayRemove,
-  deleteField,
+deleteField,
+  writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 import {
@@ -135,6 +136,7 @@ const openMessageSearchBtn = document.getElementById("openMessageSearchBtn");
    Cette modal affiche le profil du contact ou les informations du groupe.
 ========================= */
 const openChatInfoBtn = document.getElementById("openChatInfoBtn");
+const archiveChatBtn = document.getElementById("archiveChatBtn");
 const chatInfoModal = document.getElementById("chatInfoModal");
 const chatInfoBackdrop = document.getElementById("chatInfoBackdrop");
 const closeChatInfoModalBtn = document.getElementById(
@@ -453,6 +455,99 @@ function getGroupRemovalDate(chat, userId = currentUser?.uid) {
 }
 
 /* =========================
+   MODIFICATION : comparer les dates Firestore de manière fiable.
+   Cette fonction est utilisée pour savoir si un message est antérieur
+   ou postérieur au départ / retrait d’un membre du groupe.
+========================= */
+function getTimestampMilliseconds(timestamp) {
+  if (!timestamp) {
+    return 0;
+  }
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+
+  return date.getTime();
+}
+
+/* =========================
+   MODIFICATION : filtrer les messages visibles pour l’utilisateur actuel.
+   Un membre retiré ou parti volontairement ne voit que les messages
+   envoyés avant son retrait du groupe.
+========================= */
+function getMessagesVisibleForCurrentUser(chat, messages = []) {
+  if (!isRemovedFromGroup(chat)) {
+    return messages;
+  }
+
+  const removalDate = getGroupRemovalDate(chat);
+
+  if (!removalDate) {
+    return [];
+  }
+
+  const removalTime = getTimestampMilliseconds(removalDate);
+
+  return messages.filter((message) => {
+    if (!message.createdAt) {
+      return false;
+    }
+
+    return getTimestampMilliseconds(message.createdAt) <= removalTime;
+  });
+}
+
+/* =========================
+   MODIFICATION : définir l’aperçu sécurisé dans la liste Kontakt.
+   Un membre retiré voit uniquement le dernier message existant
+   au moment de son départ, jamais les nouveaux messages du groupe.
+========================= */
+function getSafeContactPreview(chat) {
+  if (!isRemovedFromGroup(chat)) {
+    return {
+      text: chat.lastMessage || "Noch keine Nachricht",
+      timestamp: chat.lastMessageAt || null,
+    };
+  }
+
+  const removalDetails =
+    chat.removedMemberDetails?.[currentUser.uid] || {};
+
+  return {
+    text:
+      removalDetails.lastVisibleMessage ||
+      (didCurrentUserLeaveGroup(chat)
+        ? "Du hast diese Lerngruppe verlassen."
+        : "Du wurdest aus dieser Lerngruppe entfernt."),
+    timestamp:
+      removalDetails.lastVisibleMessageAt ||
+      removalDetails.removedAt ||
+      null,
+  };
+}
+
+/* =========================
+   MODIFICATION : adapter le texte du bouton de suppression personnelle.
+   Le même bouton fonctionne pour les chats privés et les groupes.
+========================= */
+function updateArchiveChatMenuLabel(chat = activeChat) {
+  if (!archiveChatBtn) {
+    return;
+  }
+
+  if (!chat) {
+    archiveChatBtn.disabled = true;
+    archiveChatBtn.textContent = "Chat aus Kontakten entfernen";
+    return;
+  }
+
+  archiveChatBtn.disabled = false;
+
+  archiveChatBtn.textContent = isGroupChat(chat)
+    ? "Lerngruppe aus Kontakten entfernen"
+    : "Chat aus Kontakten entfernen";
+}
+
+/* =========================
    MODIFICATION: récupérer uniquement les membres actifs du groupe
    Les membres retirés ne doivent plus apparaître dans la liste active du groupe.
 ========================= */
@@ -670,6 +765,7 @@ function renderEmptyChat() {
   }
 
   updateChatInfoMenuLabel(null);
+  updateArchiveChatMenuLabel(null);
   renderRequestStatus(null);
   updateMessageFormState(null);
 }
@@ -706,28 +802,30 @@ async function getPartnerData(chat) {
 }
 
 /* =========================
-   MODIFICATION: charge les derniers messages d'un chat pour la recherche globale
-   Firestore ne fait pas de recherche texte avancée, donc on charge les derniers messages côté client.
+   MODIFICATION : charger uniquement les messages que l’utilisateur
+   actuel est encore autorisé à voir dans les recherches de contacts.
 ========================= */
-async function getRecentMessagesForSearch(chatId) {
+async function getRecentMessagesForSearch(chat) {
   const recentMessagesQuery = query(
-    collection(db, "chats", chatId, "messages"),
+    collection(db, "chats", chat.id, "messages"),
     orderBy("createdAt", "desc"),
     limit(30)
   );
 
   const snapshot = await getDocs(recentMessagesQuery);
 
-  return snapshot.docs.map((messageDocument) => ({
+  const messages = snapshot.docs.map((messageDocument) => ({
     id: messageDocument.id,
     ...messageDocument.data(),
   }));
+
+  return getMessagesVisibleForCurrentUser(chat, messages);
 }
 
 async function enrichChatsWithPartnerData(chatDocs) {
   const enriched = await Promise.all(
     chatDocs.map(async (chat) => {
-      const recentMessages = await getRecentMessagesForSearch(chat.id);
+      const recentMessages = await getRecentMessagesForSearch(chat);
 
       /* =========================
          MODIFICATION: les groupes n'ont pas de partner unique
@@ -803,8 +901,10 @@ function renderContacts(list = chats, searchValue = "") {
     item.className =
       chat.id === activeChatId ? "contact-item active" : "contact-item";
 
-    const lastMessage = chat.lastMessage || "Noch keine Nachricht";
-    const lastMessageTime = formatTime(chat.lastMessageAt);
+    const safePreview = getSafeContactPreview(chat);
+
+    const lastMessage = safePreview.text;
+    const lastMessageTime = formatTime(safePreview.timestamp);
     const matchingPreview = getMatchingMessagePreview(chat, searchValue);
 
     item.innerHTML = `
@@ -1790,9 +1890,17 @@ async function removeMemberFromGroup(memberId) {
         await updateDoc(doc(db, "chats", activeChatId), {
           removedMembers: arrayUnion(memberId),
 
+          /* =========================
+            MODIFICATION : mémoriser le dernier aperçu visible au moment du retrait.
+            Le membre retiré ne verra jamais les nouveaux aperçus dans Kontakt.
+          ========================= */
           [`removedMemberDetails.${memberId}`]: {
             removedAt: new Date(),
             removedBy: currentUser.uid,
+            reason: "removed",
+            lastVisibleMessage: activeChat.lastMessage || "",
+            lastVisibleMessageAt:
+              activeChat.lastMessageAt || activeChat.createdAt || new Date(),
           },
 
           admins: arrayRemove(memberId),
@@ -1839,6 +1947,10 @@ function renderGroupPanel(chat) {
      MODIFICATION: affichage spécial pour l'utilisateur retiré
      Il garde le groupe dans ses contacts mais ne voit plus les membres actifs.
   ========================= */
+  /* =========================
+    MODIFICATION : affichage spécial pour un membre sorti ou retiré.
+    Aucun bouton de départ ou de gestion ne doit rester visible.
+  ========================= */
   if (userWasRemoved) {
     if (profileInfo) {
       profileInfo.innerHTML = `
@@ -1846,12 +1958,15 @@ function renderGroupPanel(chat) {
 
         <p>
           <strong>Status:</strong>
-          <span>Aus Lerngruppe entfernt</span>
+          <span>${
+            didCurrentUserLeaveGroup(chat)
+              ? "Lerngruppe verlassen"
+              : "Aus Lerngruppe entfernt"
+          }</span>
         </p>
 
         <p class="empty-message">
-          Du wurdest aus dieser Lerngruppe entfernt.
-          Du kannst keine neuen Nachrichten senden oder empfangen.
+          ${escapeHTML(getGroupDepartureMessage(chat))}
         </p>
       `;
     }
@@ -2321,11 +2436,19 @@ async function confirmLeaveGroup() {
   const updates = {
     removedMembers: arrayUnion(currentUser.uid),
 
-    [`removedMemberDetails.${currentUser.uid}`]: {
-      removedAt: new Date(),
-      removedBy: currentUser.uid,
-      reason: "left",
-    },
+      /* =========================
+        MODIFICATION : mémoriser le dernier aperçu visible avant le départ.
+        Après avoir quitté le groupe, les futurs messages ne sont plus
+        visibles dans Kontakt, la recherche ou les médias.
+      ========================= */
+      [`removedMemberDetails.${currentUser.uid}`]: {
+        removedAt: new Date(),
+        removedBy: currentUser.uid,
+        reason: "left",
+        lastVisibleMessage: activeChat.lastMessage || "",
+        lastVisibleMessageAt:
+          activeChat.lastMessageAt || activeChat.createdAt || new Date(),
+      },
 
     /* Le membre qui quitte perd toujours ses droits admin. */
     admins: remainingAdmins,
@@ -2577,6 +2700,13 @@ document.addEventListener("click", (event) => {
     closeChatOptionsMenu();
   }
 });
+
+/* =========================
+   MODIFICATION : action du bouton de suppression personnelle.
+========================= */
+if (archiveChatBtn) {
+  archiveChatBtn.addEventListener("click", archiveActiveChat);
+}
 
 /* =========================
    MODIFICATION: fonctions générales pour les nouvelles modals du chat
@@ -3214,6 +3344,64 @@ function renderMessages(messages) {
   messagesList.scrollTop = messagesList.scrollHeight;
 }
 
+/* =========================
+   MODIFICATION : retirer personnellement un chat de Kontakt.
+   Le chat reste intact pour les autres participants.
+   Seul l’UID de l’utilisateur actuel est ajouté dans archivedBy.
+========================= */
+async function archiveActiveChat() {
+  closeChatOptionsMenu();
+
+  if (!currentUser || !activeChatId || !activeChat) {
+    showModal(
+      "warning",
+      "Kein Chat ausgewählt",
+      "Bitte wähle zuerst einen Chat aus."
+    );
+    return;
+  }
+
+  const chatName = isGroupChat(activeChat)
+    ? activeChat.groupName || "diese Lerngruppe"
+    : activePartner?.fullname || "diesen Chat";
+
+  showModal(
+    "warning",
+    "Chat entfernen",
+    `Möchtest du ${chatName} wirklich aus deiner Kontaktliste entfernen?`,
+    async () => {
+      try {
+        await updateDoc(doc(db, "chats", activeChatId), {
+          archivedBy: arrayUnion(currentUser.uid),
+          updatedAt: serverTimestamp(),
+        });
+
+        if (unsubscribeMessages) {
+          unsubscribeMessages();
+          unsubscribeMessages = null;
+        }
+
+        renderEmptyChat();
+        closeMobileChat();
+
+        showModal(
+          "success",
+          "Chat entfernt",
+          "Der Chat wurde aus deiner Kontaktliste entfernt."
+        );
+      } catch (error) {
+        console.error(error);
+
+        showModal(
+          "error",
+          "Fehler",
+          "Der Chat konnte nicht aus deiner Kontaktliste entfernt werden."
+        );
+      }
+    }
+  );
+}
+
 function subscribeToChats() {
   if (unsubscribeChats) {
     unsubscribeChats();
@@ -3244,7 +3432,12 @@ function subscribeToChats() {
           return dateB - dateA;
         });
 
-      chats = await enrichChatsWithPartnerData(chatDocs);
+      const visibleChatDocs = chatDocs.filter((chat) => {
+        return !Array.isArray(chat.archivedBy) ||
+          !chat.archivedBy.includes(currentUser.uid);
+      });
+
+      chats = await enrichChatsWithPartnerData(visibleChatDocs);
 
       renderContacts(chats, contactSearchInput.value);
 
@@ -3288,6 +3481,7 @@ function subscribeToChats() {
 
           renderRequestStatus(activeChat);
           updateMessageFormState(activeChat);
+          updateArchiveChatMenuLabel(activeChat);
           renderContacts(chats, contactSearchInput.value);
         } else {
           renderEmptyChat();
@@ -3326,26 +3520,10 @@ function subscribeToMessages(chatId) {
               MODIFICATION: un membre retiré voit uniquement l'historique avant son retrait
               Les messages publiés après son retrait ne sont ni affichés ni marqués comme lus.
             ========================= */
-            const removalDate = getGroupRemovalDate(activeChat);
-
-            const visibleMessages =
-              isRemovedFromGroup(activeChat) && removalDate
-                ? messages.filter((message) => {
-                    if (!message.createdAt) {
-                      return false;
-                    }
-
-                    const messageDate = message.createdAt.toDate
-                      ? message.createdAt.toDate()
-                      : new Date(message.createdAt);
-
-                    const removedAtDate = removalDate.toDate
-                      ? removalDate.toDate()
-                      : new Date(removalDate);
-
-                    return messageDate <= removedAtDate;
-                  })
-                : messages;
+            const visibleMessages = getMessagesVisibleForCurrentUser(
+              activeChat,
+              messages
+            );
 
             activeMessages = visibleMessages;
 
@@ -3427,6 +3605,7 @@ async function selectChat(chatId) {
   renderContacts(chats, contactSearchInput.value);
   renderChatHeader(activeChat);
   updateChatInfoMenuLabel(activeChat);
+  updateArchiveChatMenuLabel(activeChat);
   /* =========================
     MODIFICATION: panneau de droite différent pour groupe et chat privé
     Un groupe affiche ses membres, un chat privé affiche le profil du partenaire.
@@ -3513,7 +3692,21 @@ async function sendMessage() {
     fileType = attachedFile.type;
   }
 
-  await addDoc(collection(db, "chats", activeChatId, "messages"), {
+  /* =========================
+    MODIFICATION : envoi atomique d'un message.
+    Le nouveau message et les informations du chat sont enregistrés
+    ensemble afin que les futures règles Firestore puissent vérifier
+    qu'une prévisualisation de message correspond à un vrai message.
+  ========================= */
+  const batch = writeBatch(db);
+
+  const chatRef = doc(db, "chats", activeChatId);
+
+  const newMessageRef = doc(
+    collection(db, "chats", activeChatId, "messages")
+  );
+
+  batch.set(newMessageRef, {
     senderId: currentUser.uid,
     text,
     fileURL,
@@ -3527,27 +3720,32 @@ async function sendMessage() {
   });
 
   /* =========================
-     MODIFICATION: unreadCount compatible avec les chats privés et les groupes
-     Pour un groupe, tous les autres membres reçoivent +1. Pour un chat privé, cela revient au partenaire.
+    MODIFICATION : compteur des messages non lus.
+    Seuls les membres encore actifs reçoivent une notification.
   ========================= */
   const unreadUpdates = {};
 
-  /* =========================
-    MODIFICATION: seuls les membres actifs reçoivent les nouveaux messages
-    Les membres retirés ne reçoivent plus de notification ni de nouveau message.
-  ========================= */
   getActiveGroupParticipantIds(activeChat).forEach((participantId) => {
     if (participantId !== currentUser.uid) {
       unreadUpdates[`unreadCount.${participantId}`] = increment(1);
     }
   });
 
-  await updateDoc(doc(db, "chats", activeChatId), {
+  /* =========================
+    MODIFICATION : ajout de l'identifiant et de l'auteur du dernier message.
+    Ces champs permettront aux règles Firestore de vérifier que la
+    prévisualisation du chat correspond bien au message créé.
+  ========================= */
+  batch.update(chatRef, {
     lastMessage: text || `Datei: ${fileName}`,
     lastMessageAt: serverTimestamp(),
+    lastMessageId: newMessageRef.id,
+    lastMessageSenderId: currentUser.uid,
     updatedAt: serverTimestamp(),
     ...unreadUpdates,
   });
+
+  await batch.commit();
 
   messageInput.value = "";
   resizeMessageInput();

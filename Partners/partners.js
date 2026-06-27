@@ -655,35 +655,30 @@ document.addEventListener("keydown", (event) => {
 ========================= */
 
 /* =========================
-   MODIFICATION: Vérification uniquement des demandes encore actives
-   Une ancienne demande refusée, terminée ou supprimée ne bloque plus une nouvelle demande.
+   MODIFICATION: lecture sécurisée des demandes existantes
+   La recherche utilise participants afin de respecter les règles Firestore.
 ========================= */
 async function requestAlreadyExists(senderId, receiverId) {
-  const directRequestSnap = await getDocs(
-    query(
-      collection(db, "partnerRequests"),
-      where("senderId", "==", senderId),
-      where("receiverId", "==", receiverId)
-    )
+  const requestsQuery = query(
+    collection(db, "partnerRequests"),
+    where("participants", "array-contains", senderId)
   );
 
-  const reverseRequestSnap = await getDocs(
-    query(
-      collection(db, "partnerRequests"),
-      where("senderId", "==", receiverId),
-      where("receiverId", "==", senderId)
-    )
-  );
+  const snapshot = await getDocs(requestsQuery);
 
-  const allRequests = [...directRequestSnap.docs, ...reverseRequestSnap.docs];
-
-  return allRequests.some((docSnap) => {
+  return snapshot.docs.some((docSnap) => {
     const requestData = docSnap.data();
 
-    return (
+    const concernsBothUsers =
+      Array.isArray(requestData.participants) &&
+      requestData.participants.includes(senderId) &&
+      requestData.participants.includes(receiverId);
+
+    const isStillActive =
       requestData.status === "pending" ||
-      requestData.status === "accepted"
-    );
+      requestData.status === "accepted";
+
+    return concernsBothUsers && isStillActive;
   });
 }
 

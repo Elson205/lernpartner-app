@@ -128,6 +128,9 @@
               <button type="button" id="openChatInfoBtn">
                 Kontaktinformationen
               </button>
+              <button type="button" id="archiveChatBtn">
+                Chat aus Kontakten entfernen
+              </button>
             </div>
           </div>
         </div>
@@ -517,9 +520,79 @@
     </div>
 
     <!-- =========================
+        MODIFICATION: modal pour quitter une Lerngruppe
+        Elle demande confirmation et permet de choisir un nouvel admin si nécessaire.
+    ========================= -->
+    <div id="leaveGroupModal" class="chat-content-modal hidden">
+      <div id="leaveGroupBackdrop" class="chat-content-backdrop"></div>
+
+      <div class="chat-content-box leave-group-modal-box">
+        <div class="chat-content-header">
+          <h2>Gruppe verlassen</h2>
+
+          <button
+            type="button"
+            id="closeLeaveGroupModalBtn"
+            class="chat-content-close"
+            aria-label="Modal schließen"
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="leave-group-modal-content">
+          <p id="leaveGroupMessage">
+            Möchtest du diese Lerngruppe wirklich verlassen?
+          </p>
+
+          <!-- =========================
+              MODIFICATION: message d'erreur directement dans la modal
+              Cela évite une seconde modal qui pourrait passer derrière.
+          ========================= -->
+          <p id="leaveGroupError" class="leave-group-error hidden"></p>
+
+          <!-- =========================
+              MODIFICATION: visible uniquement si le seul admin doit transférer ses droits
+          ========================= -->
+          <div id="leaveGroupAdminTransferSection" class="hidden">
+            <label for="newGroupAdminSelect">
+              Neuer Admin
+            </label>
+
+            <select id="newGroupAdminSelect">
+              <option value="">Bitte auswählen</option>
+            </select>
+
+            <p class="leave-group-admin-hint">
+              Du bist der einzige Admin. Wähle ein aktives Mitglied als neuen Admin aus.
+            </p>
+          </div>
+
+          <div class="leave-group-modal-actions">
+            <button
+              type="button"
+              id="cancelLeaveGroupBtn"
+              class="leave-group-cancel-btn"
+            >
+              Abbrechen
+            </button>
+
+            <button
+              type="button"
+              id="confirmLeaveGroupBtn"
+              class="leave-group-confirm-btn"
+            >
+              Gruppe verlassen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================
      MODIFICATION: modal informations de contact ou de groupe
      Elle remplace le panneau droit sur téléphone.
-========================= -->
+    ========================= -->
     <div id="chatInfoModal" class="chat-content-modal hidden">
       <div id="chatInfoBackdrop" class="chat-content-backdrop"></div>
 
