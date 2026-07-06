@@ -244,8 +244,7 @@ function hasCompletedProfile(userData) {
     userData.fullname &&
     userData.email &&
     userData.faculty &&
-    userData.fachbereich &&
-    userData.semester
+    userData.fachbereich
   );
 }
 

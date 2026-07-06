@@ -33,7 +33,7 @@ const storage = getStorage(app);
 
 // Firebase Storage est temporairement désactivé.
 // Plus tard, après le passage à Blaze, il suffira de mettre true.
-const STORAGE_ENABLED = false;
+const STORAGE_ENABLED = true;
 
 /* =========================
    ELEMENTS HTML
@@ -363,7 +363,7 @@ function checkProfileValid() {
   if (semesterValid) {
     setValid("check-semester", "✅ Semester ausgewählt");
   } else {
-    setInvalid("check-semester", "❌ Semester fehlt");
+    setNeutral("check-semester", "➖ Semester optional");
   }
 
   // Modification : le champ Sprachen est optionnel, comme Nationalität avant.
@@ -383,8 +383,7 @@ function checkProfileValid() {
     fullnameValid &&
     emailValid &&
     facultyValid &&
-    fachbereichValid &&
-    semesterValid;
+    fachbereichValid;
 
   submitBtn.disabled = !profileIsValid;
 

@@ -2337,3 +2337,125 @@ header {
 #leaveGroupModal {
   z-index: 12500;
 }
+
+/* =========================
+   MODIFICATION : boutons d'action des membres dans la modal mobile.
+   Le bouton rouge permet aux admins de retirer un membre.
+========================= */
+.chat-info-member-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.chat-info-remove-member-btn {
+  border: none;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chat-info-remove-member-btn:hover {
+  background: #fecaca;
+}
+
+@media (max-width: 760px) {
+  .chat-info-member-buttons {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .chat-info-member-buttons button {
+    width: 100%;
+  }
+}
+
+/* =========================
+   MODIFICATION : bouton et liste des archives privées.
+========================= */
+.archived-chats-btn {
+  width: 44px;
+  min-width: 44px;
+  border: none;
+  border-radius: 10px;
+  background: #eef2f7;
+  color: #0b2850;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition:
+    background 0.2s,
+    transform 0.2s;
+}
+
+.archived-chats-btn:hover {
+  background: #dbeafe;
+  transform: translateY(-2px);
+}
+
+.archived-chats-modal-box {
+  width: min(92vw, 620px);
+}
+
+.archived-chat-item {
+  width: 100%;
+  border: 1px solid #e5e9f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 0.9rem;
+  margin-bottom: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: #111827;
+}
+
+.archived-chat-item:hover {
+  background: #eef2f7;
+}
+
+.archived-chat-title {
+  margin: 0;
+  color: #0b2850;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.archived-chat-meta {
+  margin: 0.35rem 0 0;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.archived-chat-status {
+  display: inline-block;
+  margin-top: 0.55rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.archived-chat-status.ready {
+  background: #d8f8df;
+  color: #15803d;
+}
+
+.archived-chat-status.pending {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+@media (max-width: 760px) {
+  .archived-chats-btn {
+    width: 42px;
+    min-width: 42px;
+  }
+}

@@ -77,6 +77,21 @@
           >
             👥
           </button>
+
+          <!-- =========================
+              MODIFICATION : accès aux archives privées des Lerngruppen.
+              Ce bouton ouvre la liste des groupes quittés ou dont l'utilisateur
+              a été retiré.
+          ========================= -->
+          <button
+            type="button"
+            id="archivedChatsBtn"
+            class="archived-chats-btn"
+            title="Archivierte Chats"
+            aria-label="Archivierte Chats öffnen"
+          >
+            🗂️
+          </button>
         </div>
 
         <div id="contactsList" class="contacts-list">
@@ -259,6 +274,34 @@
         </div>
       </aside>
     </main>
+
+    <!-- =========================
+        MODIFICATION : modal des archives privées.
+        Elle affiche uniquement les groupes que l'utilisateur a quittés
+        ou dont il a été retiré.
+    ========================= -->
+    <div id="archivedChatsModal" class="chat-content-modal hidden">
+      <div id="archivedChatsBackdrop" class="chat-content-backdrop"></div>
+
+      <div class="chat-content-box archived-chats-modal-box">
+        <div class="chat-content-header">
+          <h2>Archivierte Chats</h2>
+
+          <button
+            type="button"
+            id="closeArchivedChatsModalBtn"
+            class="chat-content-close"
+            aria-label="Archive schließen"
+          >
+            ×
+          </button>
+        </div>
+
+        <div id="archivedChatsList" class="chat-content-list">
+          <p class="empty-message">Archive werden geladen...</p>
+        </div>
+      </div>
+    </div>
 
     <!-- Modification : modal personnalisée pour remplacer les alert() dans la page Chat -->
     <div id="customModal" class="custom-modal hidden">
@@ -555,16 +598,15 @@
               MODIFICATION: visible uniquement si le seul admin doit transférer ses droits
           ========================= -->
           <div id="leaveGroupAdminTransferSection" class="hidden">
-            <label for="newGroupAdminSelect">
-              Neuer Admin
-            </label>
+            <label for="newGroupAdminSelect"> Neuer Admin </label>
 
             <select id="newGroupAdminSelect">
               <option value="">Bitte auswählen</option>
             </select>
 
             <p class="leave-group-admin-hint">
-              Du bist der einzige Admin. Wähle ein aktives Mitglied als neuen Admin aus.
+              Du bist der einzige Admin. Wähle ein aktives Mitglied als neuen
+              Admin aus.
             </p>
           </div>
 

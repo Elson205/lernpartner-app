@@ -24,7 +24,7 @@ import {
   increment,
   arrayUnion,
   arrayRemove,
-deleteField,
+  deleteField,
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
@@ -34,6 +34,17 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+
+/* =========================
+   MODIFICATION : import des Cloud Functions sécurisées.
+   Les actions sensibles de groupe ne sont plus faites directement
+   depuis le navigateur avec updateDoc().
+========================= */
+import {
+  getFunctions,
+  httpsCallable,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
+
 
 // Modification : import du système global de badges de notification.
 import {
@@ -45,8 +56,22 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// Modification : Firebase Storage reste désactivé tant que le projet n'est pas passé au plan Blaze.
-const STORAGE_ENABLED = false;
+/* =========================
+   MODIFICATION : connexion aux Cloud Functions de la région du projet.
+========================= */
+const functions = getFunctions(app, "europe-west3");
+
+const archiveAndRemoveGroupMember = httpsCallable(
+  functions,
+  "archiveAndRemoveGroupMember"
+);
+
+const addGroupMember = httpsCallable(
+  functions,
+  "addGroupMember"
+);
+
+const STORAGE_ENABLED = true;
 
 const chatPage = document.getElementById("chatPage");
 
@@ -58,6 +83,18 @@ const contactSearchInput = document.getElementById("contactSearchInput");
    Ces éléments viennent de la nouvelle modal ajoutée dans chat.html.
 ========================= */
 const newGroupBtn = document.getElementById("newGroupBtn");
+/* =========================
+   MODIFICATION : éléments de la modal des archives privées.
+========================= */
+const archivedChatsBtn = document.getElementById("archivedChatsBtn");
+const archivedChatsModal = document.getElementById("archivedChatsModal");
+const archivedChatsBackdrop = document.getElementById(
+  "archivedChatsBackdrop"
+);
+const closeArchivedChatsModalBtn = document.getElementById(
+  "closeArchivedChatsModalBtn"
+);
+const archivedChatsList = document.getElementById("archivedChatsList");
 const groupModal = document.getElementById("groupModal");
 const groupModalBackdrop = document.getElementById("groupModalBackdrop");
 const closeGroupModalBtn = document.getElementById("closeGroupModalBtn");
@@ -247,6 +284,7 @@ const removedGroupMembersList = document.getElementById(
 
 let currentUser = null;
 let chats = [];
+let allChats = [];
 let activeChatId = null;
 let activeChat = null;
 let activePartner = null;
@@ -257,6 +295,8 @@ let attachedFile = null;
    Cela permet d'afficher médias, fichiers, liens et résultats de recherche sans refaire une requête.
 ========================= */
 let activeMessages = [];
+
+let activeArchive = null;
 
 /* =========================
    MODIFICATION: cache des partenaires acceptés pour créer une Lerngruppe
@@ -272,6 +312,11 @@ let pendingChatIdFromUrl = urlParams.get("chatId");
 
 let unsubscribeChats = null;
 let unsubscribeMessages = null;
+/* =========================
+   MODIFICATION : écoute Firestore des archives privées.
+========================= */
+let unsubscribeArchivedChats = null;
+let archivedChats = [];
 
 const FILE_LIMITS = {
   image: 25 * 1024 * 1024,
@@ -405,20 +450,19 @@ function formatTime(timestamp) {
 }
 
 /* =========================
-   MODIFICATION: un membre retiré est bloqué comme un chat terminé
-   Il garde l'accès à l'historique, mais ne peut plus écrire.
+   MODIFICATION : un chat est terminé uniquement s'il est réellement
+   inactif ou si une collaboration privée est terminée.
+   Les membres retirés d'un groupe ne sont plus chargés dans ce chat.
 ========================= */
 function isChatEnded(chat) {
   return (
     chat?.active === false ||
-    chat?.requestStatus === "ended" ||
-    isRemovedFromGroup(chat)
+    chat?.requestStatus === "ended"
   );
 }
 
 /* =========================
-   MODIFICATION: helpers pour distinguer chat privé et groupe
-   Les anciens chats privés sans champ type restent supportés avec le fallback "private".
+   MODIFICATION : helpers pour distinguer chat privé et groupe.
 ========================= */
 function getChatType(chat) {
   return chat?.type || "private";
@@ -428,135 +472,41 @@ function isGroupChat(chat) {
   return getChatType(chat) === "group";
 }
 
-/* =========================
-   MODIFICATION: vérifier si un utilisateur a été retiré d'une Lerngruppe
-   Un membre retiré garde le groupe dans ses contacts, mais ne peut plus participer.
-========================= */
-function isRemovedFromGroup(chat, userId = currentUser?.uid) {
-  if (!isGroupChat(chat) || !userId) {
-    return false;
-  }
 
-  return Array.isArray(chat.removedMembers)
-    ? chat.removedMembers.includes(userId)
-    : false;
+/* =========================
+   MODIFICATION : vérifier si un chat a été retiré personnellement
+   de la liste de contacts par l'utilisateur connecté.
+========================= */
+function isArchivedForCurrentUser(chat) {
+  return (
+    Array.isArray(chat?.archivedBy) &&
+    chat.archivedBy.includes(currentUser?.uid)
+  );
 }
 
 /* =========================
-   MODIFICATION: récupérer la date de retrait d'un membre
-   Cette date permet de masquer les nouveaux messages pour un membre retiré.
+   MODIFICATION : réactiver un chat lorsque l'utilisateur l'ouvre
+   depuis une recherche ou lorsqu'il souhaite le revoir.
 ========================= */
-function getGroupRemovalDate(chat, userId = currentUser?.uid) {
-  if (!chat || !userId) {
-    return null;
+async function restoreArchivedChatForCurrentUser(chatId) {
+  if (!currentUser || !chatId) {
+    return;
   }
 
-  return chat.removedMemberDetails?.[userId]?.removedAt || null;
-}
-
-/* =========================
-   MODIFICATION : comparer les dates Firestore de manière fiable.
-   Cette fonction est utilisée pour savoir si un message est antérieur
-   ou postérieur au départ / retrait d’un membre du groupe.
-========================= */
-function getTimestampMilliseconds(timestamp) {
-  if (!timestamp) {
-    return 0;
-  }
-
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-
-  return date.getTime();
-}
-
-/* =========================
-   MODIFICATION : filtrer les messages visibles pour l’utilisateur actuel.
-   Un membre retiré ou parti volontairement ne voit que les messages
-   envoyés avant son retrait du groupe.
-========================= */
-function getMessagesVisibleForCurrentUser(chat, messages = []) {
-  if (!isRemovedFromGroup(chat)) {
-    return messages;
-  }
-
-  const removalDate = getGroupRemovalDate(chat);
-
-  if (!removalDate) {
-    return [];
-  }
-
-  const removalTime = getTimestampMilliseconds(removalDate);
-
-  return messages.filter((message) => {
-    if (!message.createdAt) {
-      return false;
-    }
-
-    return getTimestampMilliseconds(message.createdAt) <= removalTime;
+  await updateDoc(doc(db, "chats", chatId), {
+    archivedBy: arrayRemove(currentUser.uid),
+    updatedAt: serverTimestamp(),
   });
 }
 
 /* =========================
-   MODIFICATION : définir l’aperçu sécurisé dans la liste Kontakt.
-   Un membre retiré voit uniquement le dernier message existant
-   au moment de son départ, jamais les nouveaux messages du groupe.
-========================= */
-function getSafeContactPreview(chat) {
-  if (!isRemovedFromGroup(chat)) {
-    return {
-      text: chat.lastMessage || "Noch keine Nachricht",
-      timestamp: chat.lastMessageAt || null,
-    };
-  }
-
-  const removalDetails =
-    chat.removedMemberDetails?.[currentUser.uid] || {};
-
-  return {
-    text:
-      removalDetails.lastVisibleMessage ||
-      (didCurrentUserLeaveGroup(chat)
-        ? "Du hast diese Lerngruppe verlassen."
-        : "Du wurdest aus dieser Lerngruppe entfernt."),
-    timestamp:
-      removalDetails.lastVisibleMessageAt ||
-      removalDetails.removedAt ||
-      null,
-  };
-}
-
-/* =========================
-   MODIFICATION : adapter le texte du bouton de suppression personnelle.
-   Le même bouton fonctionne pour les chats privés et les groupes.
-========================= */
-function updateArchiveChatMenuLabel(chat = activeChat) {
-  if (!archiveChatBtn) {
-    return;
-  }
-
-  if (!chat) {
-    archiveChatBtn.disabled = true;
-    archiveChatBtn.textContent = "Chat aus Kontakten entfernen";
-    return;
-  }
-
-  archiveChatBtn.disabled = false;
-
-  archiveChatBtn.textContent = isGroupChat(chat)
-    ? "Lerngruppe aus Kontakten entfernen"
-    : "Chat aus Kontakten entfernen";
-}
-
-/* =========================
-   MODIFICATION: récupérer uniquement les membres actifs du groupe
-   Les membres retirés ne doivent plus apparaître dans la liste active du groupe.
+   MODIFICATION : tous les participants présents sont maintenant actifs.
+   Les anciens membres ne sont plus dans participants.
 ========================= */
 function getActiveGroupParticipantIds(chat) {
-  const removedMembers = chat?.removedMembers || [];
-
-  return (chat?.participants || []).filter(
-    (participantId) => !removedMembers.includes(participantId)
-  );
+  return Array.isArray(chat?.participants)
+    ? chat.participants
+    : [];
 }
 
 function getChatMembers(chat) {
@@ -564,14 +514,16 @@ function getChatMembers(chat) {
 }
 
 /* =========================
-   MODIFICATION: membres visibles dans le panneau du groupe
-   Les membres retirés ne sont plus visibles pour les membres encore actifs.
+   MODIFICATION : la liste des membres visibles correspond désormais
+   directement aux participants actifs du groupe.
 ========================= */
 function getVisibleGroupMembers(chat) {
-  const removedMembers = chat?.removedMembers || [];
+  const activeParticipantIds = new Set(
+    getActiveGroupParticipantIds(chat)
+  );
 
-  return getChatMembers(chat).filter(
-    (member) => !removedMembers.includes(member.id)
+  return getChatMembers(chat).filter((member) =>
+    activeParticipantIds.has(member.id)
   );
 }
 
@@ -595,7 +547,11 @@ function getMemberPhotoById(chat, uid) {
   return member?.photoURL || DEFAULT_PROFILE_PHOTO;
 }
 
-// Modification : met à jour le badge de statut dans le profil de droite.
+/* =========================
+   MODIFICATION : les groupes affichés sont toujours des groupes actifs
+   pour l'utilisateur connecté, car les anciens membres sont retirés
+   de participants par la Cloud Function.
+========================= */
 function renderRequestStatus(chat) {
   if (!requestStatus) return;
 
@@ -608,14 +564,6 @@ function renderRequestStatus(chat) {
   }
 
   if (isGroupChat(chat)) {
-    if (isRemovedFromGroup(chat)) {
-      requestStatus.textContent = didCurrentUserLeaveGroup(chat)
-        ? "Lerngruppe verlassen"
-        : "Aus Lerngruppe entfernt";
-      requestStatus.classList.add("ended");
-      return;
-    }
-
     requestStatus.textContent = "Lerngruppe aktiv";
     requestStatus.classList.add("confirmed");
     return;
@@ -631,19 +579,53 @@ function renderRequestStatus(chat) {
   requestStatus.classList.add("confirmed");
 }
 
-// Modification : bloque ou débloque le formulaire selon l'état du chat.
+/* =========================
+   MODIFICATION : une archive est strictement en lecture seule.
+   Le formulaire, les pièces jointes et les emojis disparaissent
+   complètement lorsqu'une archive privée est ouverte.
+========================= */
 function updateMessageFormState(chat) {
+  const isArchiveView = Boolean(activeArchive);
   const ended = isChatEnded(chat);
   const hasSelectedChat = Boolean(chat);
+
+  if (isArchiveView) {
+    if (endedChatNotice) {
+      endedChatNotice.textContent =
+        "Dieses Archiv ist schreibgeschützt. Du kannst den bisherigen Verlauf nur lesen.";
+      endedChatNotice.classList.remove("hidden");
+    }
+
+    if (messageForm) {
+      messageForm.style.display = "none";
+    }
+
+    if (filePreview) {
+      filePreview.style.display = "none";
+    }
+
+    if (emojiPicker) {
+      emojiPicker.classList.add("hidden");
+    }
+
+    return;
+  }
+
+  if (messageForm) {
+    messageForm.style.display = "";
+  }
+
+  if (filePreview) {
+    filePreview.style.display = "";
+  }
 
   if (endedChatNotice) {
     endedChatNotice.classList.toggle("hidden", !ended);
   }
 
   if (endedChatNotice && ended) {
-    endedChatNotice.textContent = isRemovedFromGroup(chat)
-      ? getGroupDepartureMessage(chat)
-      : "Diese Lernpartnerschaft wurde beendet.";
+    endedChatNotice.textContent =
+      "Diese Lernpartnerschaft wurde beendet.";
   }
 
   messageInput.disabled = !hasSelectedChat || ended;
@@ -653,9 +635,6 @@ function updateMessageFormState(chat) {
     sendMessageBtn.disabled = !hasSelectedChat || ended;
   }
 
-  /* =========================
-    MODIFICATION: désactivation du bouton emoji si aucun chat n'est sélectionné ou si le chat est terminé
-  ========================= */
   if (emojiBtn) {
     emojiBtn.disabled = !hasSelectedChat || ended;
   }
@@ -672,10 +651,8 @@ function updateMessageFormState(chat) {
   }
 
   if (ended) {
-    messageInput.placeholder = isRemovedFromGroup(chat)
-      ? getGroupDepartureMessage(chat)
-      : "Diese Lernpartnerschaft wurde beendet.";
-
+    messageInput.placeholder =
+      "Diese Lernpartnerschaft wurde beendet.";
     return;
   }
 
@@ -737,7 +714,339 @@ function getFileIcon(fileType) {
   return "📎";
 }
 
+/* =========================
+   MODIFICATION : formatage du motif d'archivage.
+========================= */
+function getArchiveReasonText(archive) {
+  return archive?.reason === "left"
+    ? "Du hast die Lerngruppe verlassen."
+    : "Du wurdest aus der Lerngruppe entfernt.";
+}
+
+/* =========================
+   MODIFICATION : fermer la modal des archives.
+========================= */
+function closeArchivedChatsModal() {
+  if (!archivedChatsModal) {
+    return;
+  }
+
+  archivedChatsModal.classList.add("hidden");
+}
+
+/* =========================
+   MODIFICATION : afficher les archives privées disponibles.
+   Les archives pending restent visibles, mais ne sont pas encore ouvrables.
+========================= */
+function renderArchivedChats() {
+  if (!archivedChatsList) {
+    return;
+  }
+
+  if (archivedChats.length === 0) {
+    archivedChatsList.innerHTML =
+      '<p class="empty-message">Keine archivierten Chats vorhanden.</p>';
+    return;
+  }
+
+  archivedChatsList.innerHTML = archivedChats
+    .map((archive) => {
+      const isReady = archive.archiveStatus === "ready";
+
+      return `
+        <button
+          type="button"
+          class="archived-chat-item"
+          data-archive-id="${escapeHTML(archive.id)}"
+          ${isReady ? "" : "disabled"}
+        >
+          <p class="archived-chat-title">
+            ${escapeHTML(archive.groupName || "Lerngruppe")}
+          </p>
+
+          <p class="archived-chat-meta">
+            ${escapeHTML(getArchiveReasonText(archive))}
+          </p>
+
+          <p class="archived-chat-meta">
+            ${archive.messageCount || 0} Nachrichten ·
+            ${formatDate(archive.archivedAt)}
+          </p>
+
+          <span class="archived-chat-status ${
+            isReady ? "ready" : "pending"
+          }">
+            ${isReady ? "Archiv bereit" : "Archiv wird vorbereitet"}
+          </span>
+        </button>
+      `;
+    })
+    .join("");
+
+    /* =========================
+      MODIFICATION : clic sur une archive prête.
+      Les archives en préparation restent désactivées.
+    ========================= */
+    const archiveButtons = archivedChatsList.querySelectorAll(
+      ".archived-chat-item[data-archive-id]"
+    );
+
+    archiveButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        openArchivedChat(button.dataset.archiveId);
+      });
+    });
+}
+
+/* =========================
+   MODIFICATION : écouter les archives privées de l'utilisateur.
+   Les documents sont créés uniquement par la Cloud Function.
+========================= */
+function subscribeToArchivedChats() {
+  if (!currentUser) {
+    return;
+  }
+
+  if (unsubscribeArchivedChats) {
+    unsubscribeArchivedChats();
+  }
+
+  const archivedChatsQuery = query(
+    collection(db, "users", currentUser.uid, "archivedChats"),
+    orderBy("archivedAt", "desc")
+  );
+
+  unsubscribeArchivedChats = onSnapshot(
+    archivedChatsQuery,
+    (snapshot) => {
+      archivedChats = snapshot.docs.map((archiveDocument) => ({
+        id: archiveDocument.id,
+        ...archiveDocument.data(),
+      }));
+
+      renderArchivedChats();
+    },
+    (error) => {
+      console.error("Archived chats error:", error);
+
+      if (archivedChatsList) {
+        archivedChatsList.innerHTML =
+          '<p class="empty-message">Archive konnten nicht geladen werden.</p>';
+      }
+    }
+  );
+}
+
+/* =========================
+   MODIFICATION : ouvrir la liste des archives privées.
+========================= */
+function openArchivedChatsModal() {
+  if (!archivedChatsModal) {
+    return;
+  }
+
+  renderArchivedChats();
+  archivedChatsModal.classList.remove("hidden");
+}
+
+/* =========================
+   MODIFICATION : afficher l'en-tête d'une archive privée.
+========================= */
+function renderArchiveHeader(archive) {
+  chatPartnerName.textContent =
+    archive.groupName || "Archivierte Lerngruppe";
+
+  chatPartnerStatus.textContent = getArchiveReasonText(archive);
+
+  activeText.textContent = "Archiv";
+  activeDot.classList.add("offline");
+}
+
+/* =========================
+   MODIFICATION : afficher un panneau droit sans administration.
+   Une archive ne montre ni participants actifs, ni boutons de retrait,
+   ni gestion de groupe.
+========================= */
+function renderArchivePanel(archive, members = []) {
+  profilePhoto.src = archive.groupPhotoURL || DEFAULT_PROFILE_PHOTO;
+  profileName.textContent = archive.groupName || "Lerngruppe";
+
+  if (profileInfo) {
+    profileInfo.innerHTML = `
+      <p><strong>Typ:</strong> <span>Archivierte Lerngruppe</span></p>
+
+      <p>
+        <strong>Status:</strong>
+        <span>${escapeHTML(getArchiveReasonText(archive))}</span>
+      </p>
+
+      <p>
+        <strong>Archiviert am:</strong>
+        <span>${escapeHTML(formatDate(archive.archivedAt))}</span>
+      </p>
+
+      <p>
+        <strong>Nachrichten:</strong>
+        <span>${archive.messageCount || 0}</span>
+      </p>
+
+      <p>
+        <strong>Teilnehmer damals:</strong>
+        <span>${members.length}</span>
+      </p>
+
+      <p class="empty-message">
+        Dieses Archiv ist schreibgeschützt.
+      </p>
+    `;
+  }
+
+  profilePhoto.onclick = null;
+
+  requestStatus.classList.remove("confirmed");
+  requestStatus.classList.add("ended");
+  requestStatus.textContent = "Archiv · Nur lesen";
+}
+
+/* =========================
+   MODIFICATION : charger les messages privés de l'archive.
+   Aucun message n'est marqué comme lu et aucune écriture n'est effectuée.
+========================= */
+function subscribeToArchivedMessages(archiveId) {
+  if (unsubscribeMessages) {
+    unsubscribeMessages();
+    unsubscribeMessages = null;
+  }
+
+  const archiveMessagesQuery = query(
+    collection(
+      db,
+      "users",
+      currentUser.uid,
+      "archivedChats",
+      archiveId,
+      "messages"
+    ),
+    orderBy("createdAt", "asc")
+  );
+
+  unsubscribeMessages = onSnapshot(
+    archiveMessagesQuery,
+    (snapshot) => {
+      activeMessages = snapshot.docs.map((messageDocument) => ({
+        id: messageDocument.id,
+        ...messageDocument.data(),
+      }));
+
+      renderMessages(activeMessages);
+
+      if (
+        messageSearchModal &&
+        !messageSearchModal.classList.contains("hidden") &&
+        messageSearchInput
+      ) {
+        searchInsideActiveConversation(messageSearchInput.value);
+      }
+    },
+    (error) => {
+      console.error("Archived messages error:", error);
+
+      messagesList.innerHTML =
+        '<p class="empty-message">Archivnachrichten konnten nicht geladen werden.</p>';
+
+      showModal(
+        "error",
+        "Fehler",
+        "Die Nachrichten dieses Archivs konnten nicht geladen werden."
+      );
+    }
+  );
+}
+
+/* =========================
+   MODIFICATION : ouvrir une archive dans le panneau central.
+   Le groupe actif n'est jamais relu : seuls les messages copiés
+   dans users/{uid}/archivedChats/{chatId}/messages sont utilisés.
+========================= */
+async function openArchivedChat(archiveId) {
+  const archive = archivedChats.find((item) => item.id === archiveId);
+
+  if (!archive || archive.archiveStatus !== "ready") {
+    return;
+  }
+
+  try {
+    const participantIds = Array.isArray(archive.participantsAtArchive)
+      ? archive.participantsAtArchive
+      : [];
+
+    const members = await Promise.all(
+      participantIds.map((memberId) => getUserData(memberId))
+    );
+
+    /* =========================
+       MODIFICATION : activeChat est une représentation locale
+       utilisée uniquement pour les noms des expéditeurs dans les messages.
+    ========================= */
+    activeArchive = archive;
+    activeChatId = `archive:${archive.id}`;
+    activePartner = null;
+    activeMessages = [];
+
+    activeChat = {
+      id: activeChatId,
+      type: "group",
+      groupName: archive.groupName || "Lerngruppe",
+      participants: participantIds,
+      members,
+      admins: [],
+      active: false,
+      archiveView: true,
+    };
+
+    attachedFile = null;
+    fileInput.value = "";
+    filePreview.textContent = "";
+
+    closeArchivedChatsModal();
+    closeChatOptionsMenu();
+    closeChatContentModal(mediaFilesModal);
+    closeChatContentModal(sharedLinksModal);
+    closeChatContentModal(messageSearchModal);
+
+    renderContacts(chats, contactSearchInput.value);
+    renderArchiveHeader(archive);
+    renderArchivePanel(archive, members);
+    updateMessageFormState(activeChat);
+
+    /* =========================
+       MODIFICATION : les options dangereuses sont désactivées
+       dans une archive : pas de suppression de chat ni d'info active.
+    ========================= */
+    if (openChatInfoBtn) {
+      openChatInfoBtn.disabled = true;
+    }
+
+    if (archiveChatBtn) {
+      archiveChatBtn.disabled = true;
+      archiveChatBtn.textContent = "Archiv kann nicht entfernt werden";
+    }
+
+    subscribeToArchivedMessages(archive.id);
+    openMobileChat();
+  } catch (error) {
+    console.error("Open archived chat error:", error);
+
+    showModal(
+      "error",
+      "Fehler",
+      "Das Archiv konnte nicht geöffnet werden."
+    );
+  }
+}
+
 function renderEmptyChat() {
+  activeArchive = null;
   activeChatId = null;
   activeChat = null;
   activePartner = null;
@@ -819,7 +1128,7 @@ async function getRecentMessagesForSearch(chat) {
     ...messageDocument.data(),
   }));
 
-  return getMessagesVisibleForCurrentUser(chat, messages);
+  return messages;
 }
 
 async function enrichChatsWithPartnerData(chatDocs) {
@@ -901,10 +1210,8 @@ function renderContacts(list = chats, searchValue = "") {
     item.className =
       chat.id === activeChatId ? "contact-item active" : "contact-item";
 
-    const safePreview = getSafeContactPreview(chat);
-
-    const lastMessage = safePreview.text;
-    const lastMessageTime = formatTime(safePreview.timestamp);
+    const lastMessage = chat.lastMessage || "Noch keine Nachricht";
+    const lastMessageTime = formatTime(chat.lastMessageAt);
     const matchingPreview = getMatchingMessagePreview(chat, searchValue);
 
     item.innerHTML = `
@@ -1381,21 +1688,20 @@ function closeGroupMemberProfileModal() {
 }
 
 /* =========================
-   MODIFICATION: vérification sécurisée du statut admin
-   Un membre retiré ou ayant quitté le groupe ne doit jamais garder ses droits.
+   MODIFICATION : un utilisateur est admin seulement s'il est encore
+   participant actif du groupe.
 ========================= */
 function isCurrentUserGroupAdmin(chat = activeChat) {
   if (
     !currentUser ||
     !isGroupChat(chat) ||
-    isRemovedFromGroup(chat, currentUser.uid)
+    !getActiveGroupParticipantIds(chat).includes(currentUser.uid)
   ) {
     return false;
   }
 
   const admins = Array.isArray(chat.admins) ? chat.admins : [];
 
-  /* Les anciens groupes peuvent ne pas avoir de tableau admins. */
   if (admins.length === 0) {
     return chat.createdBy === currentUser.uid;
   }
@@ -1578,21 +1884,27 @@ function updateManageGroupMembersCounter() {
 }
 
 /* =========================
-   MODIFICATION: charger les membres retirés du groupe actif
-   Les identifiants sont conservés dans participants mais marqués dans removedMembers.
+   MODIFICATION : chargement des anciens membres depuis formerMembers.
+   Les personnes retirées ne sont plus dans participants : elles sont
+   conservées uniquement comme historique administratif du groupe.
 ========================= */
 async function loadRemovedMembersForActiveGroup() {
   if (!activeChat || !isGroupChat(activeChat) || !removedGroupMembersList) {
     return;
   }
 
+  const formerMemberIds = Array.isArray(activeChat.formerMembers)
+    ? activeChat.formerMembers
+    : [];
+
   /* =========================
-    MODIFICATION: un membre parti volontairement ne doit pas être réajouté automatiquement
+     MODIFICATION : seuls les membres retirés par un admin peuvent
+     être réintégrés. Une personne partie volontairement ne doit pas
+     être ajoutée automatiquement.
   ========================= */
-  const removedMemberIds = (activeChat.removedMembers || []).filter(
-    (memberId) =>
-      activeChat.removedMemberDetails?.[memberId]?.reason !== "left"
-  );
+  const removedMemberIds = formerMemberIds.filter((memberId) => {
+    return activeChat.formerMemberDetails?.[memberId]?.reason === "removed";
+  });
 
   if (removedMemberIds.length === 0) {
     removedGroupMembersList.innerHTML =
@@ -1669,8 +1981,9 @@ function renderRemovedMembersForActiveGroup(removedMembers = []) {
 }
 
 /* =========================
-   MODIFICATION: réintégrer un membre retiré
-   Il redevient actif, retrouve le droit d'écrire et reçoit les futurs messages.
+   MODIFICATION : réintégration sécurisée via Cloud Function.
+   Le navigateur ne modifie plus directement participants, unreadCount
+   ou formerMemberDetails.
 ========================= */
 async function restoreMemberToGroup(memberId) {
   if (!activeChatId || !activeChat || !isGroupChat(activeChat)) {
@@ -1686,11 +1999,10 @@ async function restoreMemberToGroup(memberId) {
     return;
   }
 
-  const member = getChatMembers(activeChat).find(
-    (user) => user.id === memberId
-  );
+  const member = await getUserData(memberId);
 
-  const memberName = member?.fullname || "dieses Mitglied";
+  const memberName =
+    member?.fullname || member?.email || "dieses Mitglied";
 
   showModal(
     "warning",
@@ -1698,30 +2010,26 @@ async function restoreMemberToGroup(memberId) {
     `Möchtest du ${memberName} wieder zur Lerngruppe hinzufügen?`,
     async () => {
       try {
-        await updateDoc(doc(db, "chats", activeChatId), {
-          removedMembers: arrayRemove(memberId),
-
-          [`removedMemberDetails.${memberId}`]: deleteField(),
-
-          [`unreadCount.${memberId}`]: 0,
-
-          updatedAt: serverTimestamp(),
+        await addGroupMember({
+          chatId: activeChatId,
+          memberId,
         });
 
         showModal(
           "success",
           "Mitglied wieder hinzugefügt",
-          `${memberName} ist wieder ein aktives Mitglied der Lerngruppe.`
+          `${memberName} ist wieder ein aktives Mitglied der Lerngruppe und erhält nur zukünftige Nachrichten.`
         );
 
         await loadRemovedMembersForActiveGroup();
       } catch (error) {
-        console.error(error);
+        console.error("Restore group member error:", error);
 
         showModal(
           "error",
           "Fehler",
-          "Das Mitglied konnte nicht wieder hinzugefügt werden."
+          error?.message ||
+            "Das Mitglied konnte nicht wieder hinzugefügt werden."
         );
       }
     }
@@ -1780,8 +2088,9 @@ async function openManageGroupMembersModal() {
 }
 
 /* =========================
-   MODIFICATION: ajouter les participants sélectionnés dans Firestore
-   participants et unreadCount sont mis à jour en une seule opération.
+   MODIFICATION : ajout des nouveaux membres via Cloud Function.
+   Chaque ajout est contrôlé côté serveur : seul un admin actif peut
+   ajouter un partenaire accepté au groupe.
 ========================= */
 async function addSelectedMembersToGroup() {
   if (!activeChatId || !activeChat || !isGroupChat(activeChat)) {
@@ -1808,22 +2117,22 @@ async function addSelectedMembersToGroup() {
     return;
   }
 
-  const updates = {
-    participants: arrayUnion(...selectedMemberIds),
-    updatedAt: serverTimestamp(),
-  };
-
-  selectedMemberIds.forEach((memberId) => {
-    updates[`unreadCount.${memberId}`] = 0;
-  });
-
   if (addGroupMembersBtn) {
     addGroupMembersBtn.disabled = true;
     addGroupMembersBtn.textContent = "Mitglieder werden hinzugefügt...";
   }
 
   try {
-    await updateDoc(doc(db, "chats", activeChatId), updates);
+    /* =========================
+       MODIFICATION : les ajouts sont effectués un par un afin d’éviter
+       un conflit de transaction si plusieurs participants sont sélectionnés.
+    ========================= */
+    for (const memberId of selectedMemberIds) {
+      await addGroupMember({
+        chatId: activeChatId,
+        memberId,
+      });
+    }
 
     closeManageGroupMembersModal();
 
@@ -1833,12 +2142,13 @@ async function addSelectedMembersToGroup() {
       "Die ausgewählten Lernpartner wurden zur Lerngruppe hinzugefügt."
     );
   } catch (error) {
-    console.error(error);
+    console.error("Add group members error:", error);
 
     showModal(
       "error",
       "Fehler",
-      "Die neuen Mitglieder konnten nicht hinzugefügt werden."
+      error?.message ||
+        "Die neuen Mitglieder konnten nicht hinzugefügt werden."
     );
   } finally {
     if (addGroupMembersBtn) {
@@ -1849,11 +2159,17 @@ async function addSelectedMembersToGroup() {
 }
 
 /* =========================
-   MODIFICATION: retirer un membre sans supprimer le groupe de ses contacts
-   Le membre reste dans participants afin de voir le groupe, mais il est marqué comme retiré.
+   MODIFICATION : le retrait d'un membre est maintenant effectué
+   par la Cloud Function afin de retirer réellement son UID de participants
+   et de créer son archive privée.
 ========================= */
 async function removeMemberFromGroup(memberId) {
-  if (!currentUser || !activeChatId || !activeChat || !isGroupChat(activeChat)) {
+  if (
+    !currentUser ||
+    !activeChatId ||
+    !activeChat ||
+    !isGroupChat(activeChat)
+  ) {
     return;
   }
 
@@ -1870,7 +2186,7 @@ async function removeMemberFromGroup(memberId) {
     showModal(
       "info",
       "Eigenes Profil",
-      "Du kannst dich nicht über diesen Button entfernen. Dafür wird später die Funktion „Gruppe verlassen“ verwendet."
+      "Nutze „Gruppe verlassen“, um die Lerngruppe selbst zu verlassen."
     );
     return;
   }
@@ -1879,7 +2195,8 @@ async function removeMemberFromGroup(memberId) {
     (user) => user.id === memberId
   );
 
-  const memberName = member?.fullname || "dieses Mitglied";
+  const memberName =
+    member?.fullname || member?.email || "dieses Mitglied";
 
   showModal(
     "warning",
@@ -1887,41 +2204,25 @@ async function removeMemberFromGroup(memberId) {
     `Möchtest du ${memberName} wirklich aus der Lerngruppe entfernen?`,
     async () => {
       try {
-        await updateDoc(doc(db, "chats", activeChatId), {
-          removedMembers: arrayUnion(memberId),
-
-          /* =========================
-            MODIFICATION : mémoriser le dernier aperçu visible au moment du retrait.
-            Le membre retiré ne verra jamais les nouveaux aperçus dans Kontakt.
-          ========================= */
-          [`removedMemberDetails.${memberId}`]: {
-            removedAt: new Date(),
-            removedBy: currentUser.uid,
-            reason: "removed",
-            lastVisibleMessage: activeChat.lastMessage || "",
-            lastVisibleMessageAt:
-              activeChat.lastMessageAt || activeChat.createdAt || new Date(),
-          },
-
-          admins: arrayRemove(memberId),
-
-          [`unreadCount.${memberId}`]: 0,
-
-          updatedAt: serverTimestamp(),
+        await archiveAndRemoveGroupMember({
+          chatId: activeChatId,
+          memberId,
+          reason: "removed",
         });
 
         showModal(
           "success",
           "Mitglied entfernt",
-          `${memberName} wurde aus der Lerngruppe entfernt. Die Person sieht den Chat weiterhin, kann aber keine Nachrichten mehr senden oder empfangen.`
+          `${memberName} wurde aus der Lerngruppe entfernt.`
         );
       } catch (error) {
-        console.error(error);
+        console.error("Remove group member error:", error);
 
         showModal(
           "error",
           "Fehler",
-          "Das Mitglied konnte nicht aus der Lerngruppe entfernt werden."
+          error?.message ||
+            "Das Mitglied konnte nicht entfernt werden."
         );
       }
     }
@@ -1938,42 +2239,10 @@ async function removeMemberFromGroup(memberId) {
    Les membres actifs ne voient plus les utilisateurs retirés.
 ========================= */
 function renderGroupPanel(chat) {
-  const userWasRemoved = isRemovedFromGroup(chat);
 
   profilePhoto.src = DEFAULT_PROFILE_PHOTO;
   profileName.textContent = chat.groupName || "Lerngruppe";
 
-  /* =========================
-     MODIFICATION: affichage spécial pour l'utilisateur retiré
-     Il garde le groupe dans ses contacts mais ne voit plus les membres actifs.
-  ========================= */
-  /* =========================
-    MODIFICATION : affichage spécial pour un membre sorti ou retiré.
-    Aucun bouton de départ ou de gestion ne doit rester visible.
-  ========================= */
-  if (userWasRemoved) {
-    if (profileInfo) {
-      profileInfo.innerHTML = `
-        <p><strong>Typ:</strong> <span>Lerngruppe</span></p>
-
-        <p>
-          <strong>Status:</strong>
-          <span>${
-            didCurrentUserLeaveGroup(chat)
-              ? "Lerngruppe verlassen"
-              : "Aus Lerngruppe entfernt"
-          }</span>
-        </p>
-
-        <p class="empty-message">
-          ${escapeHTML(getGroupDepartureMessage(chat))}
-        </p>
-      `;
-    }
-
-    profilePhoto.onclick = null;
-    return;
-  }
 
   const members = getVisibleGroupMembers(chat);
   const currentUserIsAdmin = isCurrentUserGroupAdmin(chat);
@@ -2195,6 +2464,29 @@ function updateChatInfoMenuLabel(chat = activeChat) {
 }
 
 /* =========================
+   MODIFICATION : mise à jour du texte du bouton
+   "Chat aus Kontakten entfernen" dans le menu trois points.
+   Cette fonction évite l'erreur updateArchiveChatMenuLabel is not defined.
+========================= */
+function updateArchiveChatMenuLabel(chat = activeChat) {
+  if (!archiveChatBtn) {
+    return;
+  }
+
+  if (!chat) {
+    archiveChatBtn.disabled = true;
+    archiveChatBtn.textContent = "Chat aus Kontakten entfernen";
+    return;
+  }
+
+  archiveChatBtn.disabled = false;
+
+  archiveChatBtn.textContent = isGroupChat(chat)
+    ? "Lerngruppe aus Kontakten entfernen"
+    : "Chat aus Kontakten entfernen";
+}
+
+/* =========================
    MODIFICATION: fermer la modal des informations
 ========================= */
 function closeChatInfoModal() {
@@ -2248,24 +2540,7 @@ function renderPrivateChatInfo(partner) {
   `;
 }
 
-/* =========================
-   MODIFICATION: différencier un membre retiré d'un membre ayant quitté volontairement
-========================= */
-function didCurrentUserLeaveGroup(chat = activeChat) {
-  if (!chat || !currentUser) {
-    return false;
-  }
 
-  return (
-    chat.removedMemberDetails?.[currentUser.uid]?.reason === "left"
-  );
-}
-
-function getGroupDepartureMessage(chat = activeChat) {
-  return didCurrentUserLeaveGroup(chat)
-    ? "Du hast diese Lerngruppe verlassen. Du kannst keine neuen Nachrichten senden oder empfangen."
-    : "Du wurdest aus dieser Lerngruppe entfernt. Du kannst keine neuen Nachrichten senden oder empfangen.";
-}
 
 /* =========================
    MODIFICATION: afficher une erreur sans ouvrir une deuxième modal
@@ -2317,8 +2592,7 @@ function openLeaveGroupModal() {
     !currentUser ||
     !activeChat ||
     !activeChatId ||
-    !isGroupChat(activeChat) ||
-    isRemovedFromGroup(activeChat)
+    !isGroupChat(activeChat)
   ) {
     return;
   }
@@ -2387,8 +2661,9 @@ function openLeaveGroupModal() {
 }
 
 /* =========================
-   MODIFICATION: quitter réellement le groupe
-   Le membre conserve l'historique, mais devient inactif et ne reçoit plus de messages.
+   MODIFICATION : quitter le groupe passe maintenant par la Cloud Function.
+   Le serveur crée l'archive privée puis retire réellement l'utilisateur
+   de participants.
 ========================= */
 async function confirmLeaveGroup() {
   if (
@@ -2401,6 +2676,7 @@ async function confirmLeaveGroup() {
   }
 
   const activeMemberIds = getActiveGroupParticipantIds(activeChat);
+
   const otherActiveMemberIds = activeMemberIds.filter(
     (memberId) => memberId !== currentUser.uid
   );
@@ -2410,93 +2686,50 @@ async function confirmLeaveGroup() {
   if (leavingGroupRequiresNewAdmin) {
     newAdminId = newGroupAdminSelect?.value || "";
 
-    /* =========================
-        MODIFICATION: erreur affichée dans la modal actuelle
-        Aucune deuxième modal ne doit s'ouvrir au-dessus ou derrière.
-      ========================= */
-      if (!newAdminId || !otherActiveMemberIds.includes(newAdminId)) {
-        showLeaveGroupError(
-          "Bitte wähle ein aktives Mitglied als neuen Admin aus."
-        );
-
-        return;
-      }
+    if (!newAdminId || !otherActiveMemberIds.includes(newAdminId)) {
+      showLeaveGroupError(
+        "Bitte wähle ein aktives Mitglied als neuen Admin aus."
+      );
+      return;
+    }
   }
 
-  const remainingAdmins = (activeChat.admins || []).filter(
-    (adminId) =>
-      adminId !== currentUser.uid &&
-      otherActiveMemberIds.includes(adminId)
-  );
-
-  if (newAdminId && !remainingAdmins.includes(newAdminId)) {
-    remainingAdmins.push(newAdminId);
-  }
-
-  const updates = {
-    removedMembers: arrayUnion(currentUser.uid),
-
-      /* =========================
-        MODIFICATION : mémoriser le dernier aperçu visible avant le départ.
-        Après avoir quitté le groupe, les futurs messages ne sont plus
-        visibles dans Kontakt, la recherche ou les médias.
-      ========================= */
-      [`removedMemberDetails.${currentUser.uid}`]: {
-        removedAt: new Date(),
-        removedBy: currentUser.uid,
-        reason: "left",
-        lastVisibleMessage: activeChat.lastMessage || "",
-        lastVisibleMessageAt:
-          activeChat.lastMessageAt || activeChat.createdAt || new Date(),
-      },
-
-    /* Le membre qui quitte perd toujours ses droits admin. */
-    admins: remainingAdmins,
-
-    [`unreadCount.${currentUser.uid}`]: 0,
-
-    updatedAt: serverTimestamp(),
-  };
-
-  /* Le dernier membre ferme le groupe. */
-  if (otherActiveMemberIds.length === 0) {
-    updates.active = false;
-    updates.lastMessage = "Die Lerngruppe wurde beendet.";
-    updates.lastMessageAt = serverTimestamp();
-  }
+  confirmLeaveGroupBtn.disabled = true;
+  confirmLeaveGroupBtn.textContent = "Gruppe wird verlassen...";
 
   try {
-    if (confirmLeaveGroupBtn) {
-      confirmLeaveGroupBtn.disabled = true;
-      confirmLeaveGroupBtn.textContent = "Gruppe wird verlassen...";
-    }
-
-    await updateDoc(doc(db, "chats", activeChatId), updates);
+    await archiveAndRemoveGroupMember({
+      chatId: activeChatId,
+      memberId: currentUser.uid,
+      reason: "left",
+      newAdminId,
+    });
 
     closeLeaveGroupModal();
-    closeChatInfoModal();
+
+    if (unsubscribeMessages) {
+      unsubscribeMessages();
+      unsubscribeMessages = null;
+    }
+
+    renderEmptyChat();
+    closeMobileChat();
 
     showModal(
       "success",
       "Gruppe verlassen",
-      otherActiveMemberIds.length === 0
-        ? "Du hast die Lerngruppe verlassen. Die Gruppe wurde beendet."
-        : "Du hast die Lerngruppe verlassen."
+      "Du hast die Lerngruppe verlassen. Dein bisheriger Verlauf wird in deinen archivierten Chats vorbereitet."
     );
   } catch (error) {
-    console.error(error);
+    console.error("Leave group error:", error);
 
-    /* =========================
-      MODIFICATION: erreur Firebase affichée dans la modal actuelle
-    ========================= */
     showLeaveGroupError(
-      "Die Lerngruppe konnte nicht verlassen werden. Bitte versuche es erneut."
+      error?.message ||
+        "Die Lerngruppe konnte nicht verlassen werden."
     );
   } finally {
-    if (confirmLeaveGroupBtn) {
-      confirmLeaveGroupBtn.disabled = false;
-      confirmLeaveGroupBtn.textContent = "Gruppe verlassen";
-    }
+    confirmLeaveGroupBtn.disabled = false;
+    confirmLeaveGroupBtn.textContent = "Gruppe verlassen";
   }
 }
 
@@ -2526,11 +2759,21 @@ function renderGroupChatInfo(chat) {
   const members = getVisibleGroupMembers(chat);
   const currentUserIsAdmin = isCurrentUserGroupAdmin(chat);
 
+  /* =========================
+    MODIFICATION : ajout du bouton "Entfernen" dans la modal
+    Gruppeninformationen sur petit écran.
+    Seul un admin peut retirer un autre membre ; il ne peut pas se retirer
+    lui-même avec ce bouton et doit utiliser "Gruppe verlassen".
+  ========================= */
   const membersHTML =
     members.length > 0
       ? members
           .map((member) => {
             const memberName = member.fullname || member.email || "Mitglied";
+
+            const canRemoveMember =
+              currentUserIsAdmin &&
+              member.id !== currentUser.uid;
 
             return `
               <div class="chat-info-member-item">
@@ -2550,19 +2793,34 @@ function renderGroupChatInfo(chat) {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  class="chat-info-member-profile-btn"
-                  data-member-id="${escapeHTML(member.id)}"
-                >
-                  Profil ansehen
-                </button>
+                <div class="chat-info-member-buttons">
+                  <button
+                    type="button"
+                    class="chat-info-member-profile-btn"
+                    data-member-id="${escapeHTML(member.id)}"
+                  >
+                    Profil ansehen
+                  </button>
+
+                  ${
+                    canRemoveMember
+                      ? `
+                        <button
+                          type="button"
+                          class="chat-info-remove-member-btn"
+                          data-member-id="${escapeHTML(member.id)}"
+                        >
+                          Entfernen
+                        </button>
+                      `
+                      : ""
+                  }
+                </div>
               </div>
             `;
           })
           .join("")
       : '<p class="empty-message">Keine aktiven Mitglieder gefunden.</p>';
-
   /* =========================
     MODIFICATION: actions du groupe
     Tous les membres peuvent quitter le groupe, seuls les admins peuvent le gérer.
@@ -2614,6 +2872,21 @@ function renderGroupChatInfo(chat) {
     button.addEventListener("click", () => {
       closeChatInfoModal();
       openGroupMemberProfileModal(button.dataset.memberId);
+    });
+  });
+
+  /* =========================
+    MODIFICATION : connexion des boutons "Entfernen" de la modal mobile
+    à la même fonction sécurisée utilisée sur ordinateur.
+  ========================= */
+  const removeMemberButtons = chatInfoContent.querySelectorAll(
+    ".chat-info-remove-member-btn"
+  );
+
+  removeMemberButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      closeChatInfoModal();
+      removeMemberFromGroup(button.dataset.memberId);
     });
   });
 
@@ -3308,7 +3581,7 @@ function renderMessages(messages) {
                 }
 
                 ${
-                  message.senderId === currentUser.uid
+                  message.senderId === currentUser.uid && !activeArchive
                     ? `<button type="button" class="message-action-btn delete delete-btn">Löschen</button>`
                     : ""
                 }
@@ -3432,12 +3705,17 @@ function subscribeToChats() {
           return dateB - dateA;
         });
 
-      const visibleChatDocs = chatDocs.filter((chat) => {
-        return !Array.isArray(chat.archivedBy) ||
-          !chat.archivedBy.includes(currentUser.uid);
-      });
+      /* =========================
+        MODIFICATION : tous les chats sont enrichis pour que la recherche
+        puisse aussi retrouver les conversations retirées.
+      ========================= */
+      allChats = await enrichChatsWithPartnerData(chatDocs);
 
-      chats = await enrichChatsWithPartnerData(visibleChatDocs);
+      /* =========================
+        MODIFICATION : la liste normale masque seulement les chats retirés
+        personnellement par l'utilisateur connecté.
+      ========================= */
+      chats = allChats.filter((chat) => !isArchivedForCurrentUser(chat));
 
       renderContacts(chats, contactSearchInput.value);
 
@@ -3461,7 +3739,7 @@ function subscribeToChats() {
       }
 
       // Modification : si le chat actif change dans Firestore, on met à jour son état.
-      if (activeChatId) {
+      if (activeChatId && !activeArchive) {
         const updatedActiveChat = chats.find((chat) => chat.id === activeChatId);
 
         if (updatedActiveChat) {
@@ -3517,21 +3795,14 @@ function subscribeToMessages(chatId) {
         ...messageDocument.data(),
       }));
             /* =========================
-              MODIFICATION: un membre retiré voit uniquement l'historique avant son retrait
-              Les messages publiés après son retrait ne sont ni affichés ni marqués comme lus.
+              MODIFICATION : seuls les participants actifs peuvent ouvrir ce chat.
+              Les anciens membres consultent désormais leur copie privée dans Archivierte Chats.
             ========================= */
-            const visibleMessages = getMessagesVisibleForCurrentUser(
-              activeChat,
-              messages
-            );
+            activeMessages = messages;
 
-            activeMessages = visibleMessages;
+            renderMessages(messages);
 
-            renderMessages(visibleMessages);
-
-            if (!isRemovedFromGroup(activeChat)) {
-              await markMessagesAsRead(chatId, snapshot.docs);
-            }
+            await markMessagesAsRead(chatId, snapshot.docs);
 
       // Modification : si la modal recherche est ouverte, on met les résultats à jour automatiquement.
       if (
@@ -3580,13 +3851,32 @@ async function markMessagesAsRead(chatId, messageDocs) {
 }
 
 async function selectChat(chatId) {
+  activeArchive = null;
   activeChatId = chatId;
 
-  const chat = chats.find((item) => item.id === chatId);
+  /* =========================
+    MODIFICATION : un chat peut être ouvert depuis la recherche,
+    même s'il avait été retiré de la liste principale.
+  ========================= */
+  const chat =
+    chats.find((item) => item.id === chatId) ||
+    allChats.find((item) => item.id === chatId);
 
   if (!chat) {
     renderEmptyChat();
     return;
+  }
+
+  /* =========================
+    MODIFICATION : ouvrir un chat trouvé dans la recherche le rend
+    à nouveau visible dans la liste normale.
+  ========================= */
+  if (isArchivedForCurrentUser(chat)) {
+    try {
+      await restoreArchivedChatForCurrentUser(chatId);
+    } catch (error) {
+      console.error("Restore archived chat error:", error);
+    }
   }
 
   activeChat = chat;
@@ -3633,6 +3923,16 @@ async function uploadAttachedFile(chatId, file) {
 }
 
 async function sendMessage() {
+
+  if (activeArchive) {
+    showModal(
+      "info",
+      "Archiv ist schreibgeschützt",
+      "In einem archivierten Chat können keine Nachrichten gesendet werden."
+    );
+    return;
+  }
+
   if (!activeChatId || !activeChat) {
     showModal(
       "info",
@@ -3642,18 +3942,17 @@ async function sendMessage() {
     return;
   }
 
-  // Modification : empêche l'envoi si la collaboration est terminée.
+  /* =========================
+    MODIFICATION : les groupes retirés ne peuvent plus être ouverts
+    comme chats actifs. Seuls les chats réellement terminés sont bloqués ici.
+  ========================= */
   if (isChatEnded(activeChat)) {
     showModal(
       "info",
-      isRemovedFromGroup(activeChat)
-        ? "Aus Lerngruppe entfernt"
-        : "Lernpartnerschaft beendet",
-      isRemovedFromGroup(activeChat)
-        ? "Du wurdest aus dieser Lerngruppe entfernt und kannst keine neuen Nachrichten senden."
-        : isGroupChat(activeChat)
-          ? "Diese Lerngruppe wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
-          : "Diese Lernpartnerschaft wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
+      "Lernpartnerschaft beendet",
+      isGroupChat(activeChat)
+        ? "Diese Lerngruppe wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
+        : "Diese Lernpartnerschaft wurde beendet. Du kannst keine neuen Nachrichten mehr senden."
     );
 
     return;
@@ -3741,6 +4040,9 @@ async function sendMessage() {
     lastMessageAt: serverTimestamp(),
     lastMessageId: newMessageRef.id,
     lastMessageSenderId: currentUser.uid,
+    archivedBy: (activeChat.archivedBy || []).filter(
+      (userId) => userId === currentUser.uid
+    ),
     updatedAt: serverTimestamp(),
     ...unreadUpdates,
   });
@@ -3857,7 +4159,11 @@ contactSearchInput.addEventListener("input", () => {
     return;
   }
 
-  const filteredChats = chats.filter((chat) => {
+  /* =========================
+    MODIFICATION : la recherche inclut aussi les chats retirés.
+    Ils restent masqués uniquement tant qu'aucune recherche n'est lancée.
+  ========================= */
+  const filteredChats = allChats.filter((chat) => {
     const chatName = isGroupChat(chat)
       ? chat.groupName || "Lerngruppe"
       : chat.partner?.fullname || "";
@@ -3900,6 +4206,15 @@ logoutBtn.addEventListener("click", async () => {
 
     // Modification : arrêt des badges avant la déconnexion.
     stopNotificationBadges();
+
+    /* =========================
+       MODIFICATION : arrêt de l'écoute des archives privées
+       avant la déconnexion.
+    ========================= */
+    if (unsubscribeArchivedChats) {
+      unsubscribeArchivedChats();
+      unsubscribeArchivedChats = null;
+    }
 
     await signOut(auth);
 
@@ -4227,6 +4542,27 @@ if (groupModalBackdrop) {
   groupModalBackdrop.addEventListener("click", closeGroupModal);
 }
 
+/* =========================
+   MODIFICATION : événements de la modal Archive.
+========================= */
+if (archivedChatsBtn) {
+  archivedChatsBtn.addEventListener("click", openArchivedChatsModal);
+}
+
+if (closeArchivedChatsModalBtn) {
+  closeArchivedChatsModalBtn.addEventListener(
+    "click",
+    closeArchivedChatsModal
+  );
+}
+
+if (archivedChatsBackdrop) {
+  archivedChatsBackdrop.addEventListener(
+    "click",
+    closeArchivedChatsModal
+  );
+}
+
 if (groupForm) {
   groupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -4278,6 +4614,7 @@ onAuthStateChanged(auth, async (user) => {
     await setUserOnlineStatus(true);
     renderEmptyChat();
     subscribeToChats();
+    subscribeToArchivedChats();
   } catch (error) {
     console.error(error);
 
