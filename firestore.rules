@@ -207,16 +207,52 @@ service cloud.firestore {
       allow read: if signedIn();
 
       allow create: if isOwnUser(userId) &&
-        request.resource.data.uid == request.auth.uid;
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.keys().hasOnly([
+            "uid",
+            "fullname",
+            "photoURL",
+            "faculty",
+            "fachbereich",
+            "semester",
+            "languages",
+            "aboutText",
+            "aboutHTML",
+            "activeCourses",
+            "profileCompleted",
+            "online",
+            "lastSeen",
+            "blockedUsers",
+            "createdAt",
+            "updatedAt"
+        ]) &&
+        !("email" in request.resource.data);
 
-      allow update: if isOwnUser(userId) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-          "uid",
-          "email",
-          "createdAt"
-        ]);
+        allow update: if isOwnUser(userId) &&
+        request.resource.data.uid == request.auth.uid &&
+        !("email" in request.resource.data) &&
+        request.resource.data
+            .diff(resource.data)
+            .affectedKeys()
+            .hasOnly([
+            "fullname",
+            "photoURL",
+            "faculty",
+            "fachbereich",
+            "semester",
+            "languages",
+            "nationality",
+            "aboutText",
+            "aboutHTML",
+            "activeCourses",
+            "profileCompleted",
+            "online",
+            "lastSeen",
+            "blockedUsers",
+            "updatedAt"
+            ]);
 
-      allow delete: if false;
+        allow delete: if false;
 
       match /archivedChats/{chatId} {
         allow read: if isOwnUser(userId);
