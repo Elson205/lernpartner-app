@@ -535,7 +535,7 @@ function getVisibleGroupMembers(chat) {
 function getMemberNameById(chat, uid) {
   const member = getChatMembers(chat).find((user) => user.id === uid);
 
-  return member?.fullname || member?.email || "Kontakt";
+  return member?.fullname || "Kontakt";
 }
 
 /* =========================
@@ -1590,7 +1590,6 @@ async function openGroupMemberProfileModal(memberId) {
 
   try {
     const memberName = member.fullname || "Mitglied";
-    const memberEmail = member.email || "-";
     const memberPhoto = member.photoURL || DEFAULT_PROFILE_PHOTO;
     const memberLanguages = member.languages || member.nationality || "-";
     const memberAbout = member.aboutText || "-";
@@ -1609,7 +1608,6 @@ async function openGroupMemberProfileModal(memberId) {
 
         <div class="group-member-profile-title">
           <h3>${escapeHTML(memberName)}</h3>
-          <p>${escapeHTML(memberEmail)}</p>
         </div>
       </div>
 
@@ -1836,7 +1834,6 @@ function renderAvailablePartnersForActiveGroup() {
               ${escapeHTML(
                 partner.fachbereich ||
                   partner.faculty ||
-                  partner.email ||
                   "-"
               )}
             </p>
@@ -1949,14 +1946,13 @@ function renderRemovedMembersForActiveGroup(removedMembers = []) {
 
           <div class="removed-member-info">
             <p class="removed-member-name">
-              ${escapeHTML(member.fullname || member.email || "Mitglied")}
+              ${escapeHTML(member.fullname || "Mitglied")}
             </p>
 
             <p class="removed-member-meta">
               ${escapeHTML(
                 member.fachbereich ||
                   member.faculty ||
-                  member.email ||
                   "-"
               )}
             </p>
@@ -2007,7 +2003,7 @@ async function restoreMemberToGroup(memberId) {
   const member = await getUserData(memberId);
 
   const memberName =
-    member?.fullname || member?.email || "dieses Mitglied";
+    member?.fullname || "dieses Mitglied";
 
   showModal(
     "warning",
@@ -2201,7 +2197,7 @@ async function removeMemberFromGroup(memberId) {
   );
 
   const memberName =
-    member?.fullname || member?.email || "dieses Mitglied";
+    member?.fullname || "dieses Mitglied";
 
   showModal(
     "warning",
@@ -2275,7 +2271,7 @@ function renderGroupPanel(chat) {
                   />
 
                   <span>
-                    ${escapeHTML(member.fullname || member.email || "Mitglied")}
+                    ${escapeHTML(member.fullname || "Mitglied")}
                     ${isMemberAdmin ? "<strong> · Admin</strong>" : ""}
                   </span>
                 </div>
@@ -2529,7 +2525,6 @@ function renderPrivateChatInfo(partner) {
 
       <div>
         <h3>${escapeHTML(partnerName)}</h3>
-        <p>${escapeHTML(partner.email || "-")}</p>
       </div>
     </div>
 
@@ -2647,7 +2642,7 @@ function openLeaveGroupModal() {
 
         option.value = member.id;
         option.textContent =
-          member.fullname || member.email || "Mitglied";
+          member.fullname || "Mitglied";
 
         newGroupAdminSelect.appendChild(option);
       });
@@ -2764,7 +2759,7 @@ function renderGroupChatInfo(chat) {
     members.length > 0
       ? members
           .map((member) => {
-            const memberName = member.fullname || member.email || "Mitglied";
+            const memberName = member.fullname || "Mitglied";
 
             const canRemoveMember =
               currentUserIsAdmin &&
@@ -4392,7 +4387,7 @@ function renderAcceptedPartnersForGroup() {
             </p>
 
             <p class="accepted-partner-meta">
-              ${escapeHTML(partner.fachbereich || partner.faculty || partner.email || "-")}
+              ${escapeHTML(partner.fachbereich || partner.faculty || "-")}
             </p>
           </div>
         </label>

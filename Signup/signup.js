@@ -218,7 +218,6 @@ form.addEventListener("submit", async function (event) {
     await setDoc(doc(db, "users", uid), {
       uid,
       fullname,
-      email,
 
       photoURL: "../user-placeholder.jpg",
 

@@ -441,7 +441,7 @@ async function loadUserProfile() {
   currentUserData = userSnap.data();
 
   fullnameInput.value = currentUserData.fullname || "";
-  emailInput.value = currentUserData.email || currentUser.email || "";
+  emailInput.value = currentUser.email || "";
 
   facultyInput.value = currentUserData.faculty || "";
   fachbereichInput.value = currentUserData.fachbereich || "";

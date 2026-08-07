@@ -70,7 +70,6 @@ const closeRequestProfileModalBtn = document.getElementById(
 
 const requestProfilePhoto = document.getElementById("requestProfilePhoto");
 const requestProfileName = document.getElementById("requestProfileName");
-const requestProfileEmail = document.getElementById("requestProfileEmail");
 const requestProfileFaculty = document.getElementById("requestProfileFaculty");
 const requestProfileFachbereich = document.getElementById(
   "requestProfileFachbereich"
@@ -290,7 +289,6 @@ function showRequestProfile(userData) {
     !requestProfileModal ||
     !requestProfilePhoto ||
     !requestProfileName ||
-    !requestProfileEmail ||
     !requestProfileFaculty ||
     !requestProfileFachbereich ||
     !requestProfileSemester ||
@@ -308,7 +306,6 @@ function showRequestProfile(userData) {
   }
 
   const fullname = userData.fullname || "Unbekannter Nutzer";
-  const email = userData.email || "";
   const photoURL = getUserPhotoURL(userData);
   const languages = getUserLanguages(userData);
   const courses = userData.activeCourses || [];
@@ -319,7 +316,6 @@ function showRequestProfile(userData) {
   requestProfilePhoto.alt = `Profilbild von ${fullname}`;
 
   requestProfileName.textContent = fullname;
-  requestProfileEmail.textContent = displayValue(email);
   requestProfileFaculty.textContent = displayValue(userData.faculty);
   requestProfileFachbereich.textContent = displayValue(userData.fachbereich);
   requestProfileSemester.textContent = displayValue(userData.semester);

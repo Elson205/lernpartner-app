@@ -171,7 +171,6 @@ async function loadCoursesFromFirebase() {
       userRef,
       {
         uid: currentUser.uid,
-        email: currentUser.email,
         activeCourses: [],
         createdAt: serverTimestamp(),
       },

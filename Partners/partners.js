@@ -76,7 +76,6 @@ const closePartnerProfileModalBtn = document.getElementById(
 
 const partnerProfilePhoto = document.getElementById("partnerProfilePhoto");
 const partnerProfileName = document.getElementById("partnerProfileName");
-const partnerProfileEmail = document.getElementById("partnerProfileEmail");
 const partnerProfileFaculty = document.getElementById("partnerProfileFaculty");
 const partnerProfileFachbereich = document.getElementById(
   "partnerProfileFachbereich"
@@ -248,7 +247,6 @@ function displayValue(value) {
 function hasCompletedProfile(userData) {
   return (
     userData.fullname &&
-    userData.email &&
     userData.faculty &&
     userData.fachbereich
   );
@@ -496,7 +494,6 @@ function showProfile(user) {
     !partnerProfileModal ||
     !partnerProfilePhoto ||
     !partnerProfileName ||
-    !partnerProfileEmail ||
     !partnerProfileFaculty ||
     !partnerProfileFachbereich ||
     !partnerProfileSemester ||
@@ -514,7 +511,6 @@ function showProfile(user) {
   }
 
   const fullname = user.fullname || "Unbekannter Nutzer";
-  const email = user.email || "";
   const photoURL = getUserPhotoURL(user);
   const languages = getUserLanguages(user);
   const courses = user.activeCourses || [];
@@ -524,7 +520,6 @@ function showProfile(user) {
   partnerProfilePhoto.alt = `Profilbild von ${fullname}`;
 
   partnerProfileName.textContent = fullname;
-  partnerProfileEmail.textContent = displayValue(email);
   partnerProfileFaculty.textContent = displayValue(user.faculty);
   partnerProfileFachbereich.textContent = displayValue(user.fachbereich);
   partnerProfileSemester.textContent = displayValue(user.semester);
