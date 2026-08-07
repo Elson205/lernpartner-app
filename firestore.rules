@@ -11,8 +11,7 @@ service cloud.firestore {
     }
 
     function isChatParticipant(chatData) {
-      return signedIn() &&
-        chatData.participants is list &&
+    return signedIn() &&
         request.auth.uid in chatData.participants;
     }
 
