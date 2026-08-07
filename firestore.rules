@@ -233,14 +233,9 @@ service cloud.firestore {
       allow read: if signedIn() &&
         request.auth.uid in resource.data.participants;
 
-      allow create: if signedIn() &&
-        request.resource.data.senderId == request.auth.uid &&
-        request.resource.data.receiverId != request.auth.uid &&
-        request.resource.data.participants is list &&
-        request.resource.data.participants.size() == 2 &&
-        request.auth.uid in request.resource.data.participants &&
-        request.resource.data.receiverId in request.resource.data.participants &&
-        request.resource.data.status == "pending";
+      // Les créations passent par createPartnerRequest (Admin SDK), afin de
+      // garantir atomiquement qu'une seule demande active existe par paire.
+      allow create: if false;
 
       allow update: if signedIn() &&
         request.auth.uid in resource.data.participants &&
@@ -288,6 +283,10 @@ service cloud.firestore {
       allow delete: if signedIn() &&
         request.auth.uid == resource.data.senderId &&
         resource.data.status == "pending";
+    }
+
+    match /partnerRequestLocks/{pairId} {
+      allow read, write: if false;
     }
 
     match /chats/{chatId} {

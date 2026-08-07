@@ -9,14 +9,15 @@ import {
 import {
   getFirestore,
   collection,
-  query,
-  where,
   getDocs,
-  addDoc,
-  serverTimestamp,
   doc,
   getDoc,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+import {
+  getFunctions,
+  httpsCallable,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-functions.js";
 
 // Modification : import du système global de badges de notification.
 import {
@@ -26,6 +27,11 @@ import {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
+const functions = getFunctions(app, "europe-west3");
+const createPartnerRequestCallable = httpsCallable(
+  functions,
+  "createPartnerRequest"
+);
 
 const searchForm = document.getElementById("partnerSearchForm");
 const searchInput = document.getElementById("partnerSearchInput");
@@ -397,8 +403,24 @@ function createPartnerCard(user, commonCourses) {
     showProfile(user);
   });
 
-  card.querySelector(".request-btn").addEventListener("click", async () => {
-    await sendRequest(user);
+  const requestButton = card.querySelector(".request-btn");
+
+  requestButton.addEventListener("click", async () => {
+    if (requestButton.disabled) {
+      return;
+    }
+
+    const originalLabel = requestButton.textContent;
+
+    requestButton.disabled = true;
+    requestButton.textContent = "Wird gesendet …";
+
+    try {
+      await sendRequest(user);
+    } finally {
+      requestButton.disabled = false;
+      requestButton.textContent = originalLabel;
+    }
   });
 
   return card;
@@ -653,33 +675,7 @@ document.addEventListener("keydown", (event) => {
    DEMANDE PARTENAIRE
 ========================= */
 
-/* =========================
-   MODIFICATION: lecture sécurisée des demandes existantes
-   La recherche utilise participants afin de respecter les règles Firestore.
-========================= */
-async function requestAlreadyExists(senderId, receiverId) {
-  const requestsQuery = query(
-    collection(db, "partnerRequests"),
-    where("participants", "array-contains", senderId)
-  );
 
-  const snapshot = await getDocs(requestsQuery);
-
-  return snapshot.docs.some((docSnap) => {
-    const requestData = docSnap.data();
-
-    const concernsBothUsers =
-      Array.isArray(requestData.participants) &&
-      requestData.participants.includes(senderId) &&
-      requestData.participants.includes(receiverId);
-
-    const isStillActive =
-      requestData.status === "pending" ||
-      requestData.status === "accepted";
-
-    return concernsBothUsers && isStillActive;
-  });
-}
 
 async function sendRequest(user) {
   if (!currentUser) {
@@ -708,44 +704,58 @@ async function sendRequest(user) {
     return;
   }
 
-  /* =========================
-     MODIFICATION: Blocage uniquement si une demande active existe déjà
-     Les demandes supprimées, refusées ou terminées ne bloquent plus une nouvelle demande.
-  ========================= */
-  const activeRequestExists = await requestAlreadyExists(senderId, receiverId);
+  try {
+    await createPartnerRequestCallable({ receiverId });
 
-  if (activeRequestExists) {
     showModal(
-      "info",
-      "Anfrage bereits vorhanden",
-      "Zwischen euch existiert bereits eine offene Anfrage oder aktive Lernpartnerschaft."
+      "success",
+      "Anfrage gesendet",
+      "Deine Lernpartner-Anfrage wurde erfolgreich gesendet."
     );
+  } catch (error) {
+    const errorCode = String(error?.code || "");
 
-    return;
+    if (errorCode.includes("already-exists")) {
+      showModal(
+        "info",
+        "Anfrage bereits vorhanden",
+        "Zwischen euch existiert bereits eine offene Anfrage oder aktive Lernpartnerschaft."
+      );
+
+      return;
+    }
+
+    if (errorCode.includes("not-found")) {
+      showModal(
+        "error",
+        "Nutzer nicht gefunden",
+        "Dieser Nutzer existiert nicht mehr."
+      );
+
+      return;
+    }
+
+    if (errorCode.includes("unauthenticated")) {
+      showModal(
+        "warning",
+        "Nicht angemeldet",
+        "Bitte melde dich erneut an.",
+        () => {
+          window.location.href = "../Login/login.html";
+        }
+      );
+
+      return;
+    }
+
+    console.error("Fehler beim Senden der Anfrage:", error);
+
+    showModal(
+      "error",
+      "Anfrage fehlgeschlagen",
+      "Die Anfrage konnte nicht gesendet werden. Bitte versuche es erneut."
+    );
   }
-
-  /* =========================
-     MODIFICATION: Ajout de updatedAt lors de la création de la demande
-     Cela permet de trier ou suivre plus facilement les demandes dans Firestore.
-  ========================= */
-  await addDoc(collection(db, "partnerRequests"), {
-    senderId,
-    receiverId,
-    participants: [senderId, receiverId],
-    status: "pending",
-    seenBy: [senderId],
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    acceptedAt: null,
-    rejectedAt: null,
-    endedAt: null,
-  });
-
-  showModal(
-    "success",
-    "Anfrage gesendet",
-    "Deine Lernpartner-Anfrage wurde erfolgreich gesendet."
-  );
 }
 
 /* =========================

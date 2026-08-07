@@ -37,6 +37,18 @@ const REGION = "europe-west3";
 const ARCHIVE_BATCH_SIZE = 400;
 
 /* =========================
+   HELPER : identifiant stable et sans collision pour une paire d'utilisateurs.
+   Une paire produit le même identifiant, quel que soit l'ordre des utilisateurs.
+========================= */
+function getPartnerPairId(firstUserId, secondUserId) {
+  const encodedIds = [firstUserId, secondUserId]
+    .sort()
+    .map((userId) => encodeURIComponent(userId));
+
+  return `${encodedIds[0].length}_${encodedIds[0]}${encodedIds[1]}`;
+}
+
+/* =========================
    HELPER : vérifier l’authentification.
 ========================= */
 function requireAuthenticatedUser(request) {
@@ -79,6 +91,151 @@ function isGroupAdmin(chatData, userId) {
 
   return admins.includes(userId);
 }
+
+/* =========================
+   FONCTION APPELABLE : créer une demande de partenariat sans doublon.
+   Le verrou par paire empêche les clics répétés et les demandes simultanées
+   envoyées dans les deux directions.
+========================= */
+exports.createPartnerRequest = onCall(
+  {
+    region: REGION,
+    timeoutSeconds: 60,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const senderId = requireAuthenticatedUser(request);
+    const receiverId = requireString(
+      request.data?.receiverId,
+      "receiverId"
+    );
+
+    if (senderId === receiverId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Du kannst dir selbst keine Anfrage senden."
+      );
+    }
+
+    const receiverRef = db.collection("users").doc(receiverId);
+    const pairId = getPartnerPairId(senderId, receiverId);
+
+    const lockRef = db
+      .collection("partnerRequestLocks")
+      .doc(pairId);
+
+    const newRequestRef = db
+      .collection("partnerRequests")
+      .doc();
+
+    await db.runTransaction(async (transaction) => {
+      const [receiverSnap, lockSnap] = await Promise.all([
+        transaction.get(receiverRef),
+        transaction.get(lockRef),
+      ]);
+
+      if (!receiverSnap.exists) {
+        throw new HttpsError(
+          "not-found",
+          "Der Nutzer wurde nicht gefunden."
+        );
+      }
+
+      if (lockSnap.exists) {
+        const activeRequestId =
+          lockSnap.data().activeRequestId;
+
+        if (
+          typeof activeRequestId === "string" &&
+          activeRequestId !== ""
+        ) {
+          const activeRequestRef = db
+            .collection("partnerRequests")
+            .doc(activeRequestId);
+
+          const activeRequestSnap =
+            await transaction.get(activeRequestRef);
+
+          if (activeRequestSnap.exists) {
+            const activeStatus =
+              activeRequestSnap.data().status;
+
+            if (
+              activeStatus === "pending" ||
+              activeStatus === "accepted"
+            ) {
+              throw new HttpsError(
+                "already-exists",
+                "Zwischen euch existiert bereits eine aktive Anfrage."
+              );
+            }
+          }
+        }
+      } else {
+        /*
+         * Compatibilité avec les demandes déjà créées avant
+         * l'introduction de partnerRequestLocks.
+         */
+        const legacyRequestsQuery = db
+          .collection("partnerRequests")
+          .where(
+            "participants",
+            "array-contains",
+            senderId
+          );
+
+        const legacyRequestsSnapshot =
+          await transaction.get(legacyRequestsQuery);
+
+        const legacyActiveRequest =
+          legacyRequestsSnapshot.docs.find((requestSnap) => {
+            const requestData = requestSnap.data();
+
+            return (
+              Array.isArray(requestData.participants) &&
+              requestData.participants.includes(receiverId) &&
+              (
+                requestData.status === "pending" ||
+                requestData.status === "accepted"
+              )
+            );
+          });
+
+        if (legacyActiveRequest) {
+          throw new HttpsError(
+            "already-exists",
+            "Zwischen euch existiert bereits eine aktive Anfrage."
+          );
+        }
+      }
+
+      const now = Timestamp.now();
+
+      transaction.create(newRequestRef, {
+        senderId,
+        receiverId,
+        participants: [senderId, receiverId],
+        status: "pending",
+        seenBy: [senderId],
+        createdAt: now,
+        updatedAt: now,
+        acceptedAt: null,
+        rejectedAt: null,
+        endedAt: null,
+      });
+
+      transaction.set(lockRef, {
+        participants: [senderId, receiverId].sort(),
+        activeRequestId: newRequestRef.id,
+        updatedAt: now,
+      });
+    });
+
+    return {
+      requestId: newRequestRef.id,
+    };
+  }
+);
 
 /* =========================
    HELPER : vérifier qu’un utilisateur est un partenaire accepté
