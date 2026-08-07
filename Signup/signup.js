@@ -225,7 +225,7 @@ form.addEventListener("submit", async function (event) {
       faculty: "",
       fachbereich: "",
       semester: "",
-      nationality: "",
+      languages: "",
 
       aboutText: "",
       aboutHTML: "",
