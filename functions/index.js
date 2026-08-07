@@ -103,6 +103,116 @@ async function isAcceptedPartnerOf(transaction, callerId, memberId) {
 }
 
 /* =========================
+   FONCTION APPELABLE : créer un groupe d'étude.
+   Le serveur vérifie que chaque membre sélectionné est déjà un partenaire
+   accepté du créateur avant d'écrire les champs sensibles du groupe.
+========================= */
+exports.createStudyGroup = onCall(
+  {
+    region: REGION,
+    timeoutSeconds: 120,
+    memory: "256MiB",
+  },
+  async (request) => {
+    const callerId = requireAuthenticatedUser(request);
+    const groupName = requireString(request.data?.groupName, "groupName");
+    const rawMemberIds = request.data?.memberIds;
+
+    if (groupName.length > 80) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Der Gruppenname darf höchstens 80 Zeichen enthalten."
+      );
+    }
+
+    if (!Array.isArray(rawMemberIds)) {
+      throw new HttpsError(
+        "invalid-argument",
+        "memberIds muss eine Liste sein."
+      );
+    }
+
+    const memberIds = [...new Set(rawMemberIds.map((memberId) =>
+      requireString(memberId, "memberId")
+    ))];
+
+    if (
+      memberIds.length === 0 ||
+      memberIds.length > 49 ||
+      memberIds.includes(callerId)
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Wähle zwischen 1 und 49 gültige Lernpartner aus."
+      );
+    }
+
+    const participants = [callerId, ...memberIds];
+
+    const unreadCount = Object.fromEntries(
+      participants.map((participantId) => [participantId, 0])
+    );
+
+    const chatRef = db.collection("chats").doc();
+    const createdAt = Timestamp.now();
+
+    await db.runTransaction(async (transaction) => {
+      const requestsSnapshot = await transaction.get(
+        db.collection("partnerRequests")
+          .where("participants", "array-contains", callerId)
+      );
+
+      const acceptedPartnerIds = new Set();
+
+      requestsSnapshot.docs.forEach((requestSnap) => {
+        const requestData = requestSnap.data();
+
+        if (
+          requestData.status === "accepted" &&
+          Array.isArray(requestData.participants)
+        ) {
+          requestData.participants.forEach((participantId) => {
+            if (participantId !== callerId) {
+              acceptedPartnerIds.add(participantId);
+            }
+          });
+        }
+      });
+
+      if (!memberIds.every((memberId) =>
+        acceptedPartnerIds.has(memberId)
+      )) {
+        throw new HttpsError(
+          "permission-denied",
+          "Alle Gruppenmitglieder müssen akzeptierte Lernpartner sein."
+        );
+      }
+
+      transaction.create(chatRef, {
+        type: "group",
+        groupName,
+        groupPhotoURL: "",
+        createdBy: callerId,
+        admins: [callerId],
+        participants,
+        active: true,
+        createdAt,
+        updatedAt: createdAt,
+        lastMessage: "",
+        lastMessageAt: createdAt,
+        unreadCount,
+        archivedBy: [],
+      });
+    });
+
+    return {
+      success: true,
+      chatId: chatRef.id,
+    };
+  }
+);
+
+/* =========================
    FONCTION APPELABLE : quitter ou retirer un membre.
    - "left" : le membre quitte lui-même.
    - "removed" : un admin retire un autre membre.
@@ -270,8 +380,10 @@ exports.archiveAndRemoveGroupMember = onCall(
           cutoffAt: removedAt,
           archiveStatus: "pending",
           archivedAt: removedAt,
-          lastMessage: freshChat.lastMessage || "Noch keine Nachricht",
-          lastMessageAt: freshChat.lastMessageAt || removedAt,
+          lastMessage:
+            freshChat.lastMessage || "Noch keine Nachricht",
+          lastMessageAt:
+            freshChat.lastMessageAt || removedAt,
           messageCount: 0,
         },
         { merge: true }
@@ -343,7 +455,10 @@ exports.addGroupMember = onCall(
 
       const chatData = chatSnap.data();
 
-      if (chatData.type !== "group" || chatData.active !== true) {
+      if (
+        chatData.type !== "group" ||
+        chatData.active !== true
+      ) {
         throw new HttpsError(
           "failed-precondition",
           "Diese Lerngruppe ist nicht aktiv."
@@ -398,7 +513,8 @@ exports.addGroupMember = onCall(
         participants: FieldValue.arrayUnion(memberId),
         [`unreadCount.${memberId}`]: 0,
         formerMembers: FieldValue.arrayRemove(memberId),
-        [`formerMemberDetails.${memberId}`]: FieldValue.delete(),
+        [`formerMemberDetails.${memberId}`]:
+          FieldValue.delete(),
         updatedAt: Timestamp.now(),
       });
     });
@@ -444,7 +560,11 @@ exports.copyGroupArchiveMessages = onDocumentWritten(
     const cutoffAt = archiveData.cutoffAt;
 
     if (!cutoffAt) {
-      logger.error("Archive ohne cutoffAt.", { userId, chatId });
+      logger.error("Archive ohne cutoffAt.", {
+        userId,
+        chatId,
+      });
+
       return;
     }
 
@@ -515,7 +635,8 @@ exports.copyGroupArchiveMessages = onDocumentWritten(
       .collection("chats")
       .doc(chatId)
       .update({
-        [`formerMemberDetails.${userId}.archiveStatus`]: "ready",
+        [`formerMemberDetails.${userId}.archiveStatus`]:
+          "ready",
         [`formerMemberDetails.${userId}.archivedAt`]:
           FieldValue.serverTimestamp(),
       });

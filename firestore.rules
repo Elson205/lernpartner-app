@@ -1,0 +1,348 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwnUser(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isChatParticipant(chatData) {
+      return signedIn() &&
+        chatData.participants is list &&
+        request.auth.uid in chatData.participants;
+    }
+
+    function isActiveChatMember(chatData) {
+      return isChatParticipant(chatData) && chatData.active == true;
+    }
+
+    function linkedRequestAfter(requestId) {
+      return getAfter(
+        /databases/$(database)/documents/partnerRequests/$(requestId)
+      );
+    }
+
+    function linkedRequestExistsAfter(requestId) {
+      return existsAfter(
+        /databases/$(database)/documents/partnerRequests/$(requestId)
+      );
+    }
+
+    function isValidPrivateChatActivation(chatId) {
+      let requestId = request.resource.data.requestId;
+      let partnerRequest = linkedRequestAfter(requestId);
+
+      return requestId is string &&
+        linkedRequestExistsAfter(requestId) &&
+        partnerRequest.data.status == "accepted" &&
+        partnerRequest.data.chatId == chatId &&
+        partnerRequest.data.receiverId == request.auth.uid &&
+        partnerRequest.data.participants == request.resource.data.participants &&
+        request.resource.data.participants is list &&
+        request.auth.uid in request.resource.data.participants &&
+        request.resource.data.participants.size() == 2 &&
+        request.resource.data.requestStatus == "confirmed" &&
+        request.resource.data.active == true &&
+        request.resource.data.archivedBy is list &&
+        request.resource.data.archivedBy.size() == 0;
+    }
+
+    function isValidPrivateChatActivationUpdate(chatId) {
+      return isValidPrivateChatActivation(chatId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "participants",
+          "requestId",
+          "requestStatus",
+          "active",
+          "createdAt",
+          "lastMessage",
+          "lastMessageAt",
+          "unreadCount",
+          "archivedBy"
+        ]);
+    }
+
+    function isValidPrivateChatEnd(chatId) {
+      let partnerRequest = linkedRequestAfter(resource.data.requestId);
+
+      return (!("type" in resource.data) || resource.data.type != "group") &&
+        linkedRequestExistsAfter(resource.data.requestId) &&
+        partnerRequest.data.chatId == chatId &&
+        partnerRequest.data.status == "ended" &&
+        partnerRequest.data.endedBy == request.auth.uid &&
+        request.resource.data.requestStatus == "ended" &&
+        request.resource.data.active == false &&
+        request.resource.data.endedBy == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "requestStatus",
+          "active",
+          "endedAt",
+          "endedBy",
+          "updatedAt"
+        ]);
+    }
+
+    function isValidOwnArchiveChange() {
+      let before = resource.data.archivedBy;
+      let after = request.resource.data.archivedBy;
+
+      return before is list &&
+        after is list &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "archivedBy",
+          "updatedAt"
+        ]) &&
+        (
+          (
+            !(request.auth.uid in before) &&
+            request.auth.uid in after &&
+            after.size() == before.size() + 1 &&
+            after.hasAll(before)
+          ) ||
+          (
+            request.auth.uid in before &&
+            !(request.auth.uid in after) &&
+            before.size() == after.size() + 1 &&
+            before.hasAll(after)
+          )
+        );
+    }
+
+    function isValidUnreadReset() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "unreadCount"
+        ]) &&
+        request.resource.data.unreadCount.diff(resource.data.unreadCount)
+          .affectedKeys().hasOnly([request.auth.uid]) &&
+        request.resource.data.unreadCount[request.auth.uid] == 0;
+    }
+
+    function isValidMessageMetadataUpdate(chatId) {
+      let messageId = request.resource.data.lastMessageId;
+      let messageAfter = getAfter(
+        /databases/$(database)/documents/chats/$(chatId)/messages/$(messageId)
+      );
+
+      return resource.data.active == true &&
+        messageId is string &&
+        existsAfter(
+          /databases/$(database)/documents/chats/$(chatId)/messages/$(messageId)
+        ) &&
+        messageAfter.data.senderId == request.auth.uid &&
+        request.resource.data.lastMessageSenderId == request.auth.uid &&
+        request.resource.data.lastMessage == (
+          messageAfter.data.text != ""
+            ? messageAfter.data.text
+            : "Datei: " + messageAfter.data.fileName
+        ) &&
+        request.resource.data.archivedBy is list &&
+        request.resource.data.archivedBy.hasOnly([request.auth.uid]) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "lastMessage",
+          "lastMessageAt",
+          "lastMessageId",
+          "lastMessageSenderId",
+          "archivedBy",
+          "updatedAt",
+          "unreadCount"
+        ]);
+    }
+
+    function isValidReadReceipt(messageData) {
+      return request.resource.data.diff(messageData).affectedKeys().hasOnly([
+          "readBy"
+        ]) &&
+        !(request.auth.uid in messageData.readBy) &&
+        request.auth.uid in request.resource.data.readBy &&
+        request.resource.data.readBy.size() == messageData.readBy.size() + 1 &&
+        request.resource.data.readBy.hasAll(messageData.readBy);
+    }
+
+    function isValidOwnMessageDeletion(chatData, messageData) {
+      return isActiveChatMember(chatData) &&
+        request.auth.uid == messageData.senderId &&
+        messageData.deleted == false &&
+        request.resource.data.senderId == messageData.senderId &&
+        request.resource.data.createdAt == messageData.createdAt &&
+        request.resource.data.readBy == messageData.readBy &&
+        request.resource.data.edited == messageData.edited &&
+        request.resource.data.editedAt == messageData.editedAt &&
+        request.resource.data.text == "" &&
+        request.resource.data.fileURL == "" &&
+        request.resource.data.fileName == "" &&
+        request.resource.data.fileType == "" &&
+        request.resource.data.deleted == true &&
+        request.resource.data.diff(messageData).affectedKeys().hasOnly([
+          "text",
+          "fileURL",
+          "fileName",
+          "fileType",
+          "deleted",
+          "deletedAt"
+        ]);
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn();
+
+      allow create: if isOwnUser(userId) &&
+        request.resource.data.uid == request.auth.uid;
+
+      allow update: if isOwnUser(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          "uid",
+          "email",
+          "createdAt"
+        ]);
+
+      allow delete: if false;
+
+      match /archivedChats/{chatId} {
+        allow read: if isOwnUser(userId);
+        allow write: if false;
+
+        match /messages/{messageId} {
+          allow read: if isOwnUser(userId);
+          allow write: if false;
+        }
+      }
+    }
+
+    match /partnerRequests/{requestId} {
+      allow read: if signedIn() &&
+        request.auth.uid in resource.data.participants;
+
+      allow create: if signedIn() &&
+        request.resource.data.senderId == request.auth.uid &&
+        request.resource.data.receiverId != request.auth.uid &&
+        request.resource.data.participants is list &&
+        request.resource.data.participants.size() == 2 &&
+        request.auth.uid in request.resource.data.participants &&
+        request.resource.data.receiverId in request.resource.data.participants &&
+        request.resource.data.status == "pending";
+
+      allow update: if signedIn() &&
+        request.auth.uid in resource.data.participants &&
+        request.resource.data.senderId == resource.data.senderId &&
+        request.resource.data.receiverId == resource.data.receiverId &&
+        request.resource.data.participants == resource.data.participants &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "seenBy",
+          "updatedAt"
+        ]);
+
+      allow update: if signedIn() &&
+        request.auth.uid == resource.data.receiverId &&
+        resource.data.status == "pending" &&
+        request.resource.data.status in ["accepted", "rejected"] &&
+        request.resource.data.senderId == resource.data.senderId &&
+        request.resource.data.receiverId == resource.data.receiverId &&
+        request.resource.data.participants == resource.data.participants &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "acceptedAt",
+          "rejectedAt",
+          "seenBy",
+          "updatedAt",
+          "chatId"
+        ]);
+
+      allow update: if signedIn() &&
+        request.auth.uid in resource.data.participants &&
+        resource.data.status == "accepted" &&
+        request.resource.data.status == "ended" &&
+        request.resource.data.endedBy == request.auth.uid &&
+        request.resource.data.senderId == resource.data.senderId &&
+        request.resource.data.receiverId == resource.data.receiverId &&
+        request.resource.data.participants == resource.data.participants &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "status",
+          "endedAt",
+          "endedBy",
+          "seenBy",
+          "updatedAt"
+        ]);
+
+      allow delete: if signedIn() &&
+        request.auth.uid == resource.data.senderId &&
+        resource.data.status == "pending";
+    }
+
+    match /chats/{chatId} {
+      allow read: if isChatParticipant(resource.data);
+
+      allow create: if signedIn() &&
+        isValidPrivateChatActivation(chatId) &&
+        request.resource.data.keys().hasOnly([
+          "participants",
+          "requestId",
+          "requestStatus",
+          "active",
+          "createdAt",
+          "lastMessage",
+          "lastMessageAt",
+          "unreadCount",
+          "archivedBy"
+        ]);
+
+      allow update: if isChatParticipant(resource.data) && (
+        isValidPrivateChatActivationUpdate(chatId) ||
+        isValidPrivateChatEnd(chatId) ||
+        isValidOwnArchiveChange() ||
+        isValidUnreadReset() ||
+        isValidMessageMetadataUpdate(chatId)
+      );
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function parentChat() {
+          return get(
+            /databases/$(database)/documents/chats/$(chatId)
+          ).data;
+        }
+
+        allow read: if isChatParticipant(parentChat());
+
+        allow create: if isActiveChatMember(parentChat()) &&
+          request.resource.data.senderId == request.auth.uid &&
+          request.resource.data.keys().hasOnly([
+            "senderId",
+            "text",
+            "fileURL",
+            "fileName",
+            "fileType",
+            "createdAt",
+            "readBy",
+            "edited",
+            "editedAt",
+            "deleted"
+          ]) &&
+          request.resource.data.text is string &&
+          request.resource.data.fileURL is string &&
+          request.resource.data.fileName is string &&
+          request.resource.data.fileType is string &&
+          request.resource.data.readBy == [request.auth.uid] &&
+          request.resource.data.edited == false &&
+          request.resource.data.editedAt == null &&
+          request.resource.data.deleted == false;
+
+        allow update: if isChatParticipant(parentChat()) && (
+          isValidReadReceipt(resource.data) ||
+          isValidOwnMessageDeletion(parentChat(), resource.data)
+        );
+
+        allow delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

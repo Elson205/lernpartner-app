@@ -71,6 +71,11 @@ const addGroupMember = httpsCallable(
   "addGroupMember"
 );
 
+const createStudyGroupCallable = httpsCallable(
+  functions,
+  "createStudyGroup"
+);
+
 const STORAGE_ENABLED = true;
 
 const chatPage = document.getElementById("chatPage");
@@ -2742,20 +2747,10 @@ function renderGroupChatInfo(chat) {
     return;
   }
 
-  if (isRemovedFromGroup(chat)) {
-    chatInfoContent.innerHTML = `
-      <div class="chat-info-removed-message">
-        <h3>Aus Lerngruppe entfernt</h3>
-        <p>
-          Du wurdest aus dieser Lerngruppe entfernt.
-          Du kannst keine neuen Nachrichten senden oder empfangen.
-        </p>
-      </div>
-    `;
-
-    return;
-  }
-
+  /* =========================
+     MODIFICATION : un membre retiré ne peut plus ouvrir le groupe actif.
+     Il consulte uniquement son archive privée dans „Archivierte Chats“.
+  ========================= */
   const members = getVisibleGroupMembers(chat);
   const currentUserIsAdmin = isCurrentUserGroupAdmin(chat);
 
@@ -4468,35 +4463,22 @@ async function createStudyGroup() {
     return;
   }
 
-  const participants = [currentUser.uid, ...selectedPartnerIds];
-
-  const unreadCount = {};
-
-  participants.forEach((participantId) => {
-    unreadCount[participantId] = 0;
-  });
-
   if (createGroupBtn) {
     createGroupBtn.disabled = true;
     createGroupBtn.textContent = "Wird erstellt...";
   }
 
   try {
-    const groupDocument = await addDoc(collection(db, "chats"), {
-      type: "group",
+    const result = await createStudyGroupCallable({
       groupName,
-      groupPhotoURL: "",
-      createdBy: currentUser.uid,
-      admins: [currentUser.uid],
-      participants,
-      active: true,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      lastMessage: "",
-      lastMessageAt: serverTimestamp(),
-      unreadCount,
-      archivedBy: [],
+      memberIds: selectedPartnerIds,
     });
+
+    const groupId = result.data?.chatId;
+
+    if (!groupId) {
+      throw new Error("Die Gruppen-ID fehlt in der Serverantwort.");
+    }
 
     closeGroupModal();
 
@@ -4505,7 +4487,7 @@ async function createStudyGroup() {
       "Lerngruppe erstellt",
       "Die Lerngruppe wurde erfolgreich erstellt.",
       () => {
-        selectChat(groupDocument.id);
+        selectChat(groupId);
       }
     );
   } catch (error) {
